@@ -1,25 +1,19 @@
 package main
 
-import "github.com/gin-gonic/gin"
-
-func setupRouter() *gin.Engine {
-	r := gin.Default()
-	r.POST("/posts", CreatePost)
-	r.GET("/posts", GetPosts)
-	r.GET("/posts/:id", GetPost)
-	r.PATCH("/posts/:id", UpdatePost)
-	r.DELETE("/posts/:id", DeletePost)
-	return r
-}
-
+import (
+	"net/http"
+)
 
 func main() {
-	r := setupRouter()
-	r.Run(":8080")
-}
+	mux := http.NewServeMux()
+	files := http.FileServer(http.Dir("./static"))
+	mux.Handle("/static/", http.StripPrefix("/static/", files))
+	// index
+	mux.HandleFunc("/", index)
 
-func GetPosts(c *gin.Context) {}
-func GetPost(c *gin.Context) {}
-func CreatePost(c *gin.Context) {}
-func UpdatePost(c *gin.Context) {}
-func DeletePost(c *gin.Context) {}
+	server := &http.Server{
+		Addr:     "0.0.0.0:8081",
+		Handler:  mux,
+	}
+	server.ListenAndServe()
+}
