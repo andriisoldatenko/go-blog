@@ -1,26 +1,21 @@
 module github.com/andriisoldatenko/go-blog
 
 require (
-	github.com/0xAX/notificator v0.0.0-20181105090803-d81462e38c21 // indirect
-	github.com/codegangsta/envy v0.0.0-20141216192214-4b78388c8ce4 // indirect
-	github.com/codegangsta/gin v0.0.0-20171026143024-cafe2ce98974 // indirect
-	github.com/davecgh/go-spew v1.1.1 // indirect
-	github.com/gin-contrib/sse v0.0.0-20170109093832-22d885f9ecc7 // indirect
-	github.com/gin-gonic/gin v1.3.0
-	github.com/golang/protobuf v1.2.0 // indirect
-	github.com/json-iterator/go v1.1.5 // indirect
+	github.com/cosiner/argv v0.0.0-20181111161405-36fdb9e0bb2d // indirect
+	github.com/derekparker/delve v1.1.0 // indirect
+	github.com/gorilla/sessions v1.1.3
+	github.com/lestrrat-go/jwx v0.0.0-20180928232350-0d477e6a1f0e // indirect
+	github.com/lestrrat-go/pdebug v0.0.0-20180220043849-39f9a71bcabe // indirect
+	github.com/lib/pq v1.0.0
 	github.com/mattn/go-isatty v0.0.4 // indirect
-	github.com/mattn/go-shellwords v1.0.3 // indirect
-	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
-	github.com/modern-go/reflect2 v1.0.1 // indirect
-	github.com/pmezard/go-difflib v1.0.0 // indirect
-	github.com/stretchr/testify v1.2.2
-	github.com/ugorji/go/codec v0.0.0-20181022190402-e5e69e061d4f // indirect
-	golang.org/x/net v0.0.0-20181029044818-c44066c5c816 // indirect
-	golang.org/x/sync v0.0.0-20180314180146-1d60e4601c6f // indirect
-	golang.org/x/sys v0.0.0-20181026203630-95b1ffbd15a5 // indirect
-	gopkg.in/go-playground/assert.v1 v1.2.1 // indirect
-	gopkg.in/go-playground/validator.v8 v8.18.2 // indirect
-	gopkg.in/urfave/cli.v1 v1.20.0 // indirect
+	github.com/okta/okta-jwt-verifier-golang v0.0.0-20180501213203-04702def3e1b
+	github.com/okta/samples-golang v0.0.0-20180504142347-c010c8962ba1
+	github.com/peterh/liner v1.1.0 // indirect
+	github.com/pkg/errors v0.8.0 // indirect
+	github.com/sirupsen/logrus v1.2.0 // indirect
+	github.com/spf13/cobra v0.0.3 // indirect
+	github.com/spf13/pflag v1.0.3 // indirect
+	golang.org/x/arch v0.0.0-20180920145803-b19384d3c130 // indirect
+	golang.org/x/sys v0.0.0-20181121002834-0cf1ed9e522b // indirect
 	gopkg.in/yaml.v2 v2.2.1 // indirect
 )
