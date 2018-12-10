@@ -1,5 +1,3 @@
-{{ define "layout" }}
-
 <!doctype html>
 <html lang="en">
 <head>
@@ -12,12 +10,9 @@
   	<title>Blog</title>
 </head>
 <body>
-
-{{ template "navbar" . }}
-
 <div class="container">
 
-{{ template "content" . }}
+{{ block "content" . }}{{ end }}
 
 </div> <!-- /container -->
 
@@ -25,5 +20,3 @@
 <script src="/static/js/bootstrap.min.js"></script>
 </body>
 </html>
-
-{{ end }}

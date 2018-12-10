@@ -29,81 +29,23 @@ func (s Post) String() string {
 }
 
 
-
 func DBConn() (db *pg.DB) {
 	db = pg.Connect(&pg.Options{
 		Database: "blog_db",
 		User: "blog",
 		Password: "blog_secret_password",
 	})
-	defer db.Close()
 	return db
 }
 
-func main() {
-	db := pg.Connect(&pg.Options{
-		Database: "blog_db",
-		User: "blog",
-		Password: "blog_secret_password",
-	})
-	defer db.Close()
-
-	err := createSchema(db)
-	if err != nil {
-		panic(err)
-	}
-
-	user1 := &Author{
-		Name:   "admin",
-	}
-	err = db.Insert(user1)
-	if err != nil {
-		panic(err)
-	}
-
-	post1 := &Post{
-		Title:    "Cool story",
-		AuthorId: user1.Id,
-	}
-	err = db.Insert(post1)
-	if err != nil {
-		panic(err)
-	}
-
-	// Select author by primary key.
-	user := &Author{Id: user1.Id}
-	err = db.Select(user)
-	if err != nil {
-		panic(err)
-	}
-
-	// Select all users.
-	var authors []Author
-	err = db.Model(&authors).Select()
-	if err != nil {
-		panic(err)
-	}
-
-	// Select post and associated author in one query.
-	post := new(Post)
-	err = db.Model(post).
-		Relation("Author").
-		Where("post.id = ?", post1.Id).
-		Select()
-	if err != nil {
-		panic(err)
-	}
-
-	fmt.Println(user)
-	fmt.Println(authors)
-	fmt.Println(post)
+func init() {
+	db := DBConn()
+	createSchema(db)
 }
 
 func createSchema(db *pg.DB) error {
 	for _, model := range []interface{}{(*Author)(nil), (*Post)(nil)} {
-		err := db.CreateTable(model, &orm.CreateTableOptions{
-			Temp: true,
-		})
+		err := db.CreateTable(model, &orm.CreateTableOptions{})
 		if err != nil {
 			return err
 		}

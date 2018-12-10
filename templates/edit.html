@@ -1,8 +1,8 @@
-{{ define "Edit" }}
-<h2>Edit Author</h2>
+{{ define "content" }}
+<h2>Edit Plog Post</h2>
 <form method="POST" action="update">
 	<input type="hidden" name="uid" value="{{ .Id }}" />
 	<label> Name </label><input type="text" name="name" value="{{ .Name }}"  /><br />
-	<input type="submit" value="Save author" />
+	<input type="submit" value="Save Blog Post" />
 </form><br />
 {{ end }}

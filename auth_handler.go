@@ -8,7 +8,6 @@ import (
 	"github.com/gorilla/sessions"
 	"github.com/okta/okta-jwt-verifier-golang"
 	"html/template"
-
 	"io/ioutil"
 	"net/http"
 	"net/url"
@@ -16,21 +15,11 @@ import (
 )
 
 var (
-	tpl *template.Template
 	state = "ApplicationState"
 	nonce = "NonceNotSetYet"
 	sessionStore = sessions.NewCookieStore([]byte("okta-hosted-login-session-store"))
 )
 
-func generateHTML(w http.ResponseWriter, data interface{}, fn ...string) {
-	templates := template.Must(template.ParseGlob("templates/*"))
-	templates.ExecuteTemplate(w, "layout", data)
-}
-
-
-func index(w http.ResponseWriter, r *http.Request) {
-	generateHTML(w, "threads", "layout", "index")
-}
 
 func LoginHandler(w http.ResponseWriter, r *http.Request) {
 	type customData struct {
@@ -54,7 +43,8 @@ func LoginHandler(w http.ResponseWriter, r *http.Request) {
 		Issuer:          os.Getenv("ISSUER"),
 		State:           state,
 	}
-	tpl.ExecuteTemplate(w, "templates/login.html", data)
+	tpl := template.Must(template.ParseFiles("templates/layout.html", "templates/login.html"))
+	tpl.Execute(w, data)
 }
 
 func LogoutHandler(w http.ResponseWriter, r *http.Request) {
@@ -81,7 +71,8 @@ func ProfileHandler(w http.ResponseWriter, r *http.Request) {
 		Profile:         getProfileData(r),
 		IsAuthenticated: isAuthenticated(r),
 	}
-	tpl.ExecuteTemplate(w, "profile.gohtml", data)
+	tpl := template.Must(template.ParseFiles("templates/layout.html", "templates/profile.html"))
+	tpl.Execute(w, data)
 }
 
 func AuthCodeCallbackHandler(w http.ResponseWriter, r *http.Request) {

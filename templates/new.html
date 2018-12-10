@@ -1,7 +1,7 @@
-{{ define "New" }}
-<h2>New Blog</h2>
-<form method="POST" action="insert">
-	<label> Name </label><input type="text" name="name" /><br />
+{{ define "content" }}
+<h2>New Blog Post</h2>
+<form class="form" method="POST" action="insert">
+	<label> Name </label><input type="text" name="title" /><br />
 	<input type="submit" value="Save post" />
 </form>
 {{ end }}

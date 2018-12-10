@@ -4,6 +4,8 @@ import (
 	"crypto/rand"
 	"encoding/base64"
 	"fmt"
+	"net/http"
+	"text/template"
 )
 
 func GenerateNonce() (string, error) {
@@ -14,4 +16,9 @@ func GenerateNonce() (string, error) {
 	}
 
 	return base64.URLEncoding.EncodeToString(nonceBytes), nil
+}
+
+func GenerateHTML(w http.ResponseWriter, name string, data interface{}) {
+	templates := template.Must(template.ParseGlob("templates/*"))
+	templates.ExecuteTemplate(w, name, data)
 }

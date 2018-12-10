@@ -116,15 +116,13 @@ type Post struct {
 	AuthorId    int64
 	Title       string
 	Content     string
-	CreatedAt   time.Time
-	PublishedAt time.Time
 }
 ```
 
 And now we can create schema and connect to DB:
-Let's create `main.go` and `go-blog` folder:
+Let's create `db.go` file where all database related code are placed in `go-blog` folder:
 ```bash
-$ cat main.go
+$ cat db.go
 ```
 
 ```go
@@ -132,7 +130,6 @@ package main
 
 import (
 	"fmt"
-
 	"github.com/go-pg/pg"
 	"github.com/go-pg/pg/orm"
 )
@@ -144,6 +141,10 @@ type Author struct {
 	Password    string
 }
 
+func (u Author) String() string {
+	return fmt.Sprintf("Author<%d %s %v>", u.Id, u.Name, u.Email)
+}
+
 type Post struct {
 	Id       int64
 	Title    string
@@ -151,70 +152,28 @@ type Post struct {
 	Author   *Author
 }
 
-func main() {
-	db := pg.Connect(&pg.Options{
+func (s Post) String() string {
+	return fmt.Sprintf("Post<%d %s %s>", s.Id, s.Title, s.Author)
+}
+
+
+func DBConn() (db *pg.DB) {
+	db = pg.Connect(&pg.Options{
 		Database: "blog_db",
 		User: "blog",
 		Password: "blog_secret_password",
 	})
-	defer db.Close()
+	return db
+}
 
-	err := createSchema(db)
-	if err != nil {
-		panic(err)
-	}
-
-	user1 := &Author{
-		Name:   "admin",
-	}
-	err = db.Insert(user1)
-	if err != nil {
-		panic(err)
-	}
-
-	post1 := &Post{
-		Title:    "Cool story",
-		AuthorId: user1.Id,
-	}
-	err = db.Insert(post1)
-	if err != nil {
-		panic(err)
-	}
-
-	// Select user by primary key.
-	user := &Author{Id: user1.Id}
-	err = db.Select(user)
-	if err != nil {
-		panic(err)
-	}
-
-	// Select all users.
-	var authors []Author
-	err = db.Model(&authors).Select()
-	if err != nil {
-		panic(err)
-	}
-
-	// Select story and associated author in one query.
-	post := new(Post)
-	err = db.Model(post).
-		Relation("Author").
-		Where("post.id = ?", post1.Id).
-		Select()
-	if err != nil {
-		panic(err)
-	}
-
-	fmt.Println(user)
-	fmt.Println(authors)
-	fmt.Println(post)
+func init() {
+	db := DBConn()
+	createSchema(db)
 }
 
 func createSchema(db *pg.DB) error {
 	for _, model := range []interface{}{(*Author)(nil), (*Post)(nil)} {
-		err := db.CreateTable(model, &orm.CreateTableOptions{
-			Temp: true,
-		})
+		err := db.CreateTable(model, &orm.CreateTableOptions{})
 		if err != nil {
 			return err
 		}
@@ -315,55 +274,56 @@ import (
 	"strconv"
 )
 
-var tmpl = template.Must(template.ParseGlob("templates/*"))
 
-
-// Get all Authors and render template with Authors
-func Index(w http.ResponseWriter, r *http.Request) {
+// Get all blog posts and render template
+func AllPosts(w http.ResponseWriter, r *http.Request) {
 	db := DBConn()
-	var authors []Author
-	err := db.Model(&authors).Select()
+	var posts []Post
+	err := db.Model(&posts).Select()
 	if err != nil {
 		panic(err)
 	}
-	tmpl.ExecuteTemplate(w, "Index", r)
+	t, _ := template.ParseFiles("templates/layout.html", "templates/index.html")
+	t.Execute(w, posts)
 	defer db.Close()
 }
 
 // Return new blog Post html form on GET
-func New(w http.ResponseWriter, r *http.Request) {
-	tmpl.ExecuteTemplate(w, "New", nil)
+func NewPost(w http.ResponseWriter, r *http.Request) {
+	t, _ := template.ParseFiles("templates/layout.html", "templates/new.html")
+	t.Execute(w, nil)
 }
 
-// Create new author post using form submit
-func Insert(w http.ResponseWriter, r *http.Request) {
+// Create new blog post post using form submit
+func InsertPost(w http.ResponseWriter, r *http.Request) {
 	db := DBConn()
 	if r.Method == "POST" {
-		name := r.FormValue("name")
-		user1 := &Author{
-			Name: name,
+		title := r.FormValue("title")
+		post1 := &Post{
+			Title: title,
 		}
-		err := db.Insert(user1)
+		err := db.Insert(post1)
 		if err != nil {
 			panic(err)
 		}
-		log.Println("Create Post: Name: " + name)
+		log.Println("Create Blog Post: Title: " + title)
 	}
 	defer db.Close()
 	http.Redirect(w, r, "/", 301)
 }
 
-// Update author details
-func Edit(w http.ResponseWriter, r *http.Request) {
+// Update post details
+func EditPost(w http.ResponseWriter, r *http.Request) {
 	db := DBConn()
 	nId, err := strconv.ParseInt(r.URL.Query().Get("id"), 10, 64)
 	// Select user by primary key.
-	user := &Author{Id: nId}
-	err = db.Select(user)
+	post := &Post{Id: nId}
+	err = db.Select(post)
 	if err != nil {
 		panic(err)
 	}
-	tmpl.ExecuteTemplate(w, "Edit", user)
+	t, _ := template.ParseFiles("templates/layout.html", "templates/edit.html")
+	t.Execute(w, post)
 	defer db.Close()
 }
 ```
@@ -376,26 +336,28 @@ Now we need to create folder `templates` and put all needed templates inside.
 - Create a file named `index.html` inside the `templates` folder and put the following code inside it.
 
 ```go
-{{ define "Index" }}
-<h2> Registered </h2>
-<table border="1">
-	<thead>
+{{ define "content" }}
+<div class="container">
+    <p> All Posts</p>
+</div>
+<table class="table">
+	<thead class="thead-dark">
 	<tr>
-		<td>ID</td>
-		<td>Name</td>
-		<td>View</td>
-		<td>Edit</td>
-		<td>Delete</td>
+		<th>ID</th>
+		<th>Name</th>
+		<th>View</th>
+		<th>Edit</th>
+		<th>Delete</th>
 	</tr>
 	</thead>
 	<tbody>
   {{ range . }}
 	<tr>
-		<td>{{ .Id }}</td>
-		<td> {{ .Name }} </td>
-		<td><a href="/show/{{ .Id }}">View</a></td>
-		<td><a href="/edit/{{ .Id }}">Edit</a></td>
-		<td><a href="/delete/{{ .Id }}">Delete</a><td>
+		<tr scope="col">{{ .Id }}</tr>
+		<tr scope="col"> {{ .Name }} </tr>
+		<tr scope="col"><a href="/show?id={{ .Id }}">View</a></tr>
+		<tr scope="col"><a href="/edit?id={{ .Id }}">Edit</a></tr>
+		<tr scope="col"><a href="/delete?id={{ .Id }}">Delete</a><td>
 	</tr>
   {{ end }}
 	</tbody>
@@ -403,31 +365,27 @@ Now we need to create folder `templates` and put all needed templates inside.
 {{ end }}
 ```
 
-- ttt
+- Next create a file named `new.html` inside the `templates` folder and put the following code inside it.
 
 ```go
-{{ define "New" }}
-  {{ template "Header" }}
-    {{ template "Menu" }} 
-   <h2>New Name and City</h2>  
-    <form method="POST" action="insert">
-      <label> Name </label><input type="text" name="name" /><br />
-      <label> City </label><input type="text" name="city" /><br />
-      <input type="submit" value="Save user" />
-    </form>
-  {{ template "Footer" }}
+{{ define "content" }}
+<h2>New Blog Post</h2>
+<form class="form" method="POST" action="insert">
+	<label> Name </label><input type="text" name="title" /><br />
+	<input type="submit" value="Save post" />
+</form>
 {{ end }}
 ```
 
-- At last, we need to create `edit.html` template file for update item, so again create this file in `templates` folder:
+- At last, create `edit.html` template file for update blog post, so again create this file in `templates` folder:
 
 ```go
-{{ define "Edit" }}
-<h2>Edit Author</h2>
+{{ define "content" }}
+<h2>Edit Plog Post</h2>
 <form method="POST" action="update">
 	<input type="hidden" name="uid" value="{{ .Id }}" />
 	<label> Name </label><input type="text" name="name" value="{{ .Name }}"  /><br />
-	<input type="submit" value="Save author" />
+	<input type="submit" value="Save Blog Post" />
 </form><br />
 {{ end }}
 ```
@@ -455,7 +413,6 @@ import (
 	"github.com/gorilla/sessions"
 	"github.com/okta/okta-jwt-verifier-golang"
 	"html/template"
-
 	"io/ioutil"
 	"net/http"
 	"net/url"
@@ -463,21 +420,11 @@ import (
 )
 
 var (
-	tpl *template.Template
 	state = "ApplicationState"
 	nonce = "NonceNotSetYet"
 	sessionStore = sessions.NewCookieStore([]byte("okta-hosted-login-session-store"))
 )
 
-func generateHTML(w http.ResponseWriter, data interface{}, fn ...string) {
-	templates := template.Must(template.ParseGlob("templates/*"))
-	templates.ExecuteTemplate(w, "layout", data)
-}
-
-
-func index(w http.ResponseWriter, r *http.Request) {
-	generateHTML(w, "threads", "layout", "index")
-}
 
 func LoginHandler(w http.ResponseWriter, r *http.Request) {
 	type customData struct {
@@ -501,7 +448,8 @@ func LoginHandler(w http.ResponseWriter, r *http.Request) {
 		Issuer:          os.Getenv("ISSUER"),
 		State:           state,
 	}
-	tpl.ExecuteTemplate(w, "templates/login.html", data)
+	tpl := template.Must(template.ParseFiles("templates/layout.html", "templates/login.html"))
+	tpl.Execute(w, data)
 }
 
 func LogoutHandler(w http.ResponseWriter, r *http.Request) {
@@ -528,7 +476,8 @@ func ProfileHandler(w http.ResponseWriter, r *http.Request) {
 		Profile:         getProfileData(r),
 		IsAuthenticated: isAuthenticated(r),
 	}
-	tpl.ExecuteTemplate(w, "profile.gohtml", data)
+	tpl := template.Must(template.ParseFiles("templates/layout.html", "templates/profile.html"))
+	tpl.Execute(w, data)
 }
 
 func AuthCodeCallbackHandler(w http.ResponseWriter, r *http.Request) {
@@ -707,7 +656,7 @@ Now we need to `login.html` template in `templates` folder:
 
 ## Routers
 
-Usually `routers.go` or just `main.go` place where models, handlers and teplates are all together in one synergy:
+Usually `routers.go` or just `main.go` place where models, handlers and tepmlates are all together in one synergy:
 
 ```go
 package main
@@ -721,9 +670,10 @@ func main() {
 	mux := http.NewServeMux()
 	files := http.FileServer(http.Dir("./static"))
 
-	mux.HandleFunc("/", Index)
-	mux.HandleFunc("/new/post/", New)
-	mux.HandleFunc("/edit/post/", Edit)
+	mux.HandleFunc("/", AllPosts)
+	mux.HandleFunc("/new", NewPost)
+	mux.HandleFunc("/new/insert", InsertPost)
+	mux.HandleFunc("/edit", EditPost)
 	mux.HandleFunc("/login", LoginHandler)
 	mux.HandleFunc("/logout", LogoutHandler)
 	mux.HandleFunc("/authorization-code/callback", AuthCodeCallbackHandler)

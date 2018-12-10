@@ -1,23 +1,25 @@
-{{ define "Index" }}
-<h2> Registered </h2>
-<table border="1">
-	<thead>
+{{ define "content" }}
+<div class="container">
+    <p> All Posts</p>
+</div>
+<table class="table">
+	<thead class="thead-dark">
 	<tr>
-		<td>ID</td>
-		<td>Name</td>
-		<td>View</td>
-		<td>Edit</td>
-		<td>Delete</td>
+		<th>ID</th>
+		<th>Name</th>
+		<th>View</th>
+		<th>Edit</th>
+		<th>Delete</th>
 	</tr>
 	</thead>
 	<tbody>
   {{ range . }}
 	<tr>
-		<td>{{ .Id }}</td>
-		<td> {{ .Name }} </td>
-		<td><a href="/show?id={{ .Id }}">View</a></td>
-		<td><a href="/edit?id={{ .Id }}">Edit</a></td>
-		<td><a href="/delete?id={{ .Id }}">Delete</a><td>
+		<tr scope="col">{{ .Id }}</tr>
+		<tr scope="col"> {{ .Name }} </tr>
+		<tr scope="col"><a href="/show?id={{ .Id }}">View</a></tr>
+		<tr scope="col"><a href="/edit?id={{ .Id }}">Edit</a></tr>
+		<tr scope="col"><a href="/delete?id={{ .Id }}">Delete</a><td>
 	</tr>
   {{ end }}
 	</tbody>

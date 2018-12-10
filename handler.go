@@ -7,54 +7,55 @@ import (
 	"strconv"
 )
 
-var tmpl = template.Must(template.ParseGlob("templates/*"))
 
-
-// Get all Authors and render template with Authors
-func Index(w http.ResponseWriter, r *http.Request) {
+// Get all blog posts and render template
+func AllPosts(w http.ResponseWriter, r *http.Request) {
 	db := DBConn()
-	var authors []Author
-	err := db.Model(&authors).Select()
+	var posts []Post
+	err := db.Model(&posts).Select()
 	if err != nil {
 		panic(err)
 	}
-	tmpl.ExecuteTemplate(w, "Index", r)
+	t, _ := template.ParseFiles("templates/layout.html", "templates/index.html")
+	t.Execute(w, posts)
 	defer db.Close()
 }
 
 // Return new blog Post html form on GET
-func New(w http.ResponseWriter, r *http.Request) {
-	tmpl.ExecuteTemplate(w, "New", nil)
+func NewPost(w http.ResponseWriter, r *http.Request) {
+	t, _ := template.ParseFiles("templates/layout.html", "templates/new.html")
+	t.Execute(w, nil)
 }
 
-// Create new author post using form submit
-func Insert(w http.ResponseWriter, r *http.Request) {
+// Create new blog post post using form submit
+func InsertPost(w http.ResponseWriter, r *http.Request) {
 	db := DBConn()
 	if r.Method == "POST" {
-		name := r.FormValue("name")
-		user1 := &Author{
-			Name: name,
+		title := r.FormValue("title")
+		post1 := &Post{
+			Title: title,
 		}
-		err := db.Insert(user1)
+		err := db.Insert(post1)
 		if err != nil {
 			panic(err)
 		}
-		log.Println("Create Post: Name: " + name)
+		log.Println("Create Blog Post: Title: " + title)
 	}
 	defer db.Close()
 	http.Redirect(w, r, "/", 301)
 }
 
-// Update author details
-func Edit(w http.ResponseWriter, r *http.Request) {
+// Update post details
+func EditPost(w http.ResponseWriter, r *http.Request) {
 	db := DBConn()
 	nId, err := strconv.ParseInt(r.URL.Query().Get("id"), 10, 64)
 	// Select user by primary key.
-	user := &Author{Id: nId}
-	err = db.Select(user)
+	post := &Post{Id: nId}
+	err = db.Select(post)
 	if err != nil {
 		panic(err)
 	}
-	tmpl.ExecuteTemplate(w, "Edit", user)
+	t, _ := template.ParseFiles("templates/layout.html", "templates/edit.html")
+	t.Execute(w, post)
 	defer db.Close()
 }
