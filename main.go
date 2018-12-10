@@ -10,6 +10,8 @@ func main() {
 	files := http.FileServer(http.Dir("./static"))
 
 	mux.HandleFunc("/", index)
+	mux.HandleFunc("/new/", New)
+	mux.HandleFunc("/edit/", Edit)
 	mux.Handle("/static/", http.StripPrefix("/static/", files))
 	mux.HandleFunc("/login", LoginHandler)
 	http.HandleFunc("/logout", LogoutHandler)

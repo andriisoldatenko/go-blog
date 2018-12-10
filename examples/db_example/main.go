@@ -1,6 +1,8 @@
 package main
 
 import (
+	//"fmt"
+
 	"fmt"
 	"github.com/go-pg/pg"
 	"github.com/go-pg/pg/orm"
@@ -26,18 +28,6 @@ type Post struct {
 
 func (s Post) String() string {
 	return fmt.Sprintf("Post<%d %s %s>", s.Id, s.Title, s.Author)
-}
-
-
-
-func DBConn() (db *pg.DB) {
-	db = pg.Connect(&pg.Options{
-		Database: "blog_db",
-		User: "blog",
-		Password: "blog_secret_password",
-	})
-	defer db.Close()
-	return db
 }
 
 func main() {
@@ -70,7 +60,7 @@ func main() {
 		panic(err)
 	}
 
-	// Select author by primary key.
+	// Select user by primary key.
 	user := &Author{Id: user1.Id}
 	err = db.Select(user)
 	if err != nil {
@@ -84,7 +74,7 @@ func main() {
 		panic(err)
 	}
 
-	// Select post and associated author in one query.
+	// Select story and associated author in one query.
 	post := new(Post)
 	err = db.Model(post).
 		Relation("Author").

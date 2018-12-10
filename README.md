@@ -9,54 +9,28 @@ tags: [go, html, blog]
 # Go web app in 20 minutes
 
 ## Go and web applications
-Nowadays web is the most used kind of software applications. Each day we sniff internet using laptops 
-and mobile devices, we play in games and watch TV shows. HTTP is the basis for communicating in web.
-The first version of HTTP has been created by Tim Berners-Lee in 1990, was a simple protocol created 
-to help adoption of the World Wide Web. Everything that you see on a web page is transported through 
-this simple text-based protocol. HTTP is a stateless, text-based, request-response protocol that uses 
-the client-server computing model. Go as many other programming languages has all needed out-of-box 
+
+Nowadays, web applications are the most used kind of software applications. Each day we surf the internet using laptops and mobile devices, we play in games and watch TV shows. HTTP is the basis for communicating in web. The first version of HTTP (created by Tim Berners-Lee in 1990) was a simple protocol created to help the adoption of the World Wide Web. Everything you see on a web page is transported through this simple text-based protocol. HTTP is a stateless, text-based, request-response protocol that uses the client-server computing model. Go as many other programming languages has all needed out-of-box 
 for supporting http through [`net/http`](https://golang.org/pkg/net/http/) package.
 
 ## Prerequisites
+
 Before we dig into building web app in Go, please make sure you have installed latest Go in your 
 operating system. To check current installed version you can run:
+
 ```bash
 $ go version
-go version go1.12 darwin/amd64
-```
-For more details how to install fo indifferent operation systems please visit 
-[go install](https://golang.org/doc/install) page.
-
-## Few words about go modules.
-Since Go1.11 has been released we finally can see go official way for dependency management.
-Hovever, modules are an experimental feature in Go 1.11, go community are going to finalize it in
-Go 1.12. More details in [Go 1.11 Modules](https://github.com/golang/go/wiki/Modules).
-
-
-## Project layout
-```bash
-tree -L 3
-go-blog git:(master) ✗ tree -L 3
-.
-4 directories, 10 files
-├── Makefile
-├── README.md
-├── blog
-├── db.go
-├── examples
-├── go.mod
-├── go.sum
-├── handler.go
-├── main.go
-├── session.go
-├── sql
-├── static
-├── templates
-└── utils.go
+go version go1.11.2 darwin/amd64
 ```
 
 ## Writing your first Go web app
-I prefer to start everything by example:
+
+I prefer to start everything by example, let's create first file `server.go` using you favorite text editor:
+
+```bash
+$ cat server.go
+```
+
 ```go
 package main
 
@@ -74,50 +48,202 @@ func main() {
 	http.ListenAndServe(":8081", nil)
 }
 ```
+
 A _handler_ receives and processes the HTTP request sent from the client. It also calls the 
 template engine to generate the HTML and finally bundles data into the HTTP response to be sent 
 back to the client.
 
+Now we can build and run our first go web app!:
 
-## Hello World! 
-Let's build simple and modern blog platform, but before we start, let's review basic `server.go` example:
-Open you favorite text editor, create file and paste listing belows: 
+```bash
+go run server.go
+```
+
+Note: `go run` - build and run your go program in the same time.
+
+Now if you open you browser and go to `http://localhost:8081/Okta`, you can see:
+
+```bash
+$ curl http://localhost:8081/okta
+Hello okta!
+```
+
+## Go modules.
+
+Since Go 1.11 has been released we finally can see go official way for dependency management.
+However, modules are an experimental feature in Go 1.11, go community are going to finalize it in
+Go 1.12. More details in [Go 1.11 Modules](https://github.com/golang/go/wiki/Modules).
+
+### Create project folder
+
+Quick start with Go Modules:
+
+```bash
+$ mkdir -p $HOME/work/go-blog
+$ cd $HOME/work/go-blog
+$ go mod init github.com/you/go-blog
+$ ls -la
+-rw-r--r--    1 andrii  staff    30 Dec 10 14:02 go.mod
+-rw-r--r--    1 andrii  staff  1374 Dec 10 14:01 main.go
+$ cat go.mod
+module github.com/you/go-blog
+```
+
+
+Now we can write some code with dependencies.
+
+## Let's build a simple and modern blog platform
+
+## Models
+
+In Go typically we are using type `struct` for mapping database tables. In our blog app, we need two models or structs `Author`:
+
+```
+type Author struct {
+	Id          int64
+	Name        string
+	Email       string
+	Password    string
+}
+```
+
+and `Post`, and use has many posts relationship.
+
+```
+type Post struct {
+	Id          int64
+	Author      *Author
+	AuthorId    int64
+	Title       string
+	Content     string
+	CreatedAt   time.Time
+	PublishedAt time.Time
+}
+```
+
+And now we can create schema and connect to DB:
+Let's create `main.go` and `go-blog` folder:
+```bash
+$ cat main.go
+```
+
 ```go
 package main
 
 import (
 	"fmt"
-	"net/http"
+
+	"github.com/go-pg/pg"
+	"github.com/go-pg/pg/orm"
 )
 
+type Author struct {
+	Id          int64
+	Name        string
+	Email       string
+	Password    string
+}
 
-func handler(writer http.ResponseWriter, request *http.Request) {
-	fmt.Fprintf(writer, "Hello %s!", request.URL.Path[1:])
+type Post struct {
+	Id       int64
+	Title    string
+	AuthorId int64
+	Author   *Author
 }
 
 func main() {
-	mux := http.NewServeMux()
-	files := http.FileServer(http.Dir("./static"))
-	mux.Handle("/static/", http.StripPrefix("/static/", files))
-	mux.HandleFunc("/", handler)
-	server := &http.Server{
-		Addr:     "0.0.0.0:8081",
-		Handler:  mux,
+	db := pg.Connect(&pg.Options{
+		Database: "blog_db",
+		User: "blog",
+		Password: "blog_secret_password",
+	})
+	defer db.Close()
+
+	err := createSchema(db)
+	if err != nil {
+		panic(err)
 	}
-	server.ListenAndServe()
+
+	user1 := &Author{
+		Name:   "admin",
+	}
+	err = db.Insert(user1)
+	if err != nil {
+		panic(err)
+	}
+
+	post1 := &Post{
+		Title:    "Cool story",
+		AuthorId: user1.Id,
+	}
+	err = db.Insert(post1)
+	if err != nil {
+		panic(err)
+	}
+
+	// Select user by primary key.
+	user := &Author{Id: user1.Id}
+	err = db.Select(user)
+	if err != nil {
+		panic(err)
+	}
+
+	// Select all users.
+	var authors []Author
+	err = db.Model(&authors).Select()
+	if err != nil {
+		panic(err)
+	}
+
+	// Select story and associated author in one query.
+	post := new(Post)
+	err = db.Model(post).
+		Relation("Author").
+		Where("post.id = ?", post1.Id).
+		Select()
+	if err != nil {
+		panic(err)
+	}
+
+	fmt.Println(user)
+	fmt.Println(authors)
+	fmt.Println(post)
 }
-```
-Now we are good to run it:
+
+func createSchema(db *pg.DB) error {
+	for _, model := range []interface{}{(*Author)(nil), (*Post)(nil)} {
+		err := db.CreateTable(model, &orm.CreateTableOptions{
+			Temp: true,
+		})
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+``` 
+
+Before we try to build model related code, we should return back to Go modules, and `go-pg` as dependency:
+It's very easy, as soon you run `go build` or `go run`, go will do it automatically:
+
 ```bash
-$ go run server.go
+go run main.go
+go: finding github.com/go-pg/pg/orm latest
+go: downloading github.com/go-pg/pg v6.15.1+incompatible
+go: finding github.com/jinzhu/inflection latest
+...
 ```
-and now try to open you favorite browser and navigate to `http://localhost:8081`.
 
-## Templates
-
+Now you can see another issue with we forgot to add / install our database and by default we are trying to reach localhost:5432 PostgreSQL instance:
+```
+panic: dial tcp [::1]:5432: connect: connection refused
+```
+It means we need to configure our database.
 
 ## Database
-For storage in selected cool DB PostgreSQL, let's pull latest version using Docker:
+
+For storage in selected cool DB PostgreSQL as the database, let's pull latest version using Docker:
+
 ```bash
 $ docker run --name postgresql -itd --restart always \
     --publish 5432:5432 \
@@ -128,6 +254,7 @@ $ docker run --name postgresql -itd --restart always \
 ```
 
 Now we can check, that database is ready to accept connections:
+
 ```bash
 docker logs -f postgresql
 # few missing lines
@@ -137,7 +264,8 @@ docker logs -f postgresql
 2018-11-21 16:20:04.801 UTC [1105] LOG:  database system was shut down at 2018-11-21 16:20:04 UTC
 2018-11-21 16:20:04.834 UTC [1] LOG:  database system is ready to accept connections
 ```
-And also it always make sense to try to connect using `psql` command line tool:
+And also it always makes sense to try to connect using `psql` command line tool:
+
 ```bash
  psql -h localhost -U blog -d blog_db -p 5432
 Password for user blog:
@@ -148,45 +276,398 @@ blog_db=> \dt;
 Did not find any relations.
 blog_db=>
 ```
-As you can see, there is no any tables in our just created database `blog`. In real world application, you need
-to create  
-## Models
-In Go typically we are using type `struct` for mapping database tables. In our blog app, we need to models or
-2 structs `User`:
 
+As you can see, there is no any tables in our just created database `blog`. In real world application, you need to create  
+
+## Integrate DB with models
+
+Now we can edit our `main.go` to replace with DB connection settings:
+
+```go
+db := pg.Connect(&pg.Options{
+    Database: "blog_db",
+    User: "blog",
+    Password: "blog_secret_password",
+})
 ```
-type User struct {
-	Id          int
-	Name        string
-	Email       string
-	Password    string
-	CreatedAt   time.Time
-	PublishedAt time.Time
+
+If you run `go run main.go` you can see that we generated tables and insert `Author` and `Post`:
+```bash
+Author<1 admin >
+[Author<1 admin >]
+Post<1 Cool story Author<1 admin >>
+```
+
+## Handlers or views
+A view function, or view for short, is simply a Go function that takes a Web request and write to response object. In our example this response can be the HTML contents of a web page, or a redirect, or a 404 error, or an XML document, or an image . . . or anything, really. The view itself contains whatever arbitrary logic is necessary to return that response. This code can live anywhere you want, as long as it’s on your Python path. There’s no other requirement–no "magic," so to speak.
+
+```bash
+$ cat handler.go
+```
+
+```go
+package main
+
+import (
+	"html/template"
+	"log"
+	"net/http"
+	"strconv"
+)
+
+var tmpl = template.Must(template.ParseGlob("templates/*"))
+
+
+// Get all Authors and render template with Authors
+func Index(w http.ResponseWriter, r *http.Request) {
+	db := DBConn()
+	var authors []Author
+	err := db.Model(&authors).Select()
+	if err != nil {
+		panic(err)
+	}
+	tmpl.ExecuteTemplate(w, "Index", r)
+	defer db.Close()
+}
+
+// Return new blog Post html form on GET
+func New(w http.ResponseWriter, r *http.Request) {
+	tmpl.ExecuteTemplate(w, "New", nil)
+}
+
+// Create new author post using form submit
+func Insert(w http.ResponseWriter, r *http.Request) {
+	db := DBConn()
+	if r.Method == "POST" {
+		name := r.FormValue("name")
+		user1 := &Author{
+			Name: name,
+		}
+		err := db.Insert(user1)
+		if err != nil {
+			panic(err)
+		}
+		log.Println("Create Post: Name: " + name)
+	}
+	defer db.Close()
+	http.Redirect(w, r, "/", 301)
+}
+
+// Update author details
+func Edit(w http.ResponseWriter, r *http.Request) {
+	db := DBConn()
+	nId, err := strconv.ParseInt(r.URL.Query().Get("id"), 10, 64)
+	// Select user by primary key.
+	user := &Author{Id: nId}
+	err = db.Select(user)
+	if err != nil {
+		panic(err)
+	}
+	tmpl.ExecuteTemplate(w, "Edit", user)
+	defer db.Close()
 }
 ```
- and `Post`, and use has many posts relationship.
 
-```
-type Post struct {
-	Id          int
-	Author      string
-	Title       string
-	Text        string
-	UserId      User
-	CreatedAt   time.Time
-	PublishedAt time.Time
-}
+## Create templates
+
+Go has powerful template engine out of box.
+Now we need to create folder `templates` and put all needed templates inside.
+
+- Create a file named `index.html` inside the `templates` folder and put the following code inside it.
+
+```go
+{{ define "Index" }}
+<h2> Registered </h2>
+<table border="1">
+	<thead>
+	<tr>
+		<td>ID</td>
+		<td>Name</td>
+		<td>View</td>
+		<td>Edit</td>
+		<td>Delete</td>
+	</tr>
+	</thead>
+	<tbody>
+  {{ range . }}
+	<tr>
+		<td>{{ .Id }}</td>
+		<td> {{ .Name }} </td>
+		<td><a href="/show/{{ .Id }}">View</a></td>
+		<td><a href="/edit/{{ .Id }}">Edit</a></td>
+		<td><a href="/delete/{{ .Id }}">Delete</a><td>
+	</tr>
+  {{ end }}
+	</tbody>
+</table>
+{{ end }}
 ```
 
-# Authentication using Okta
+- ttt
+
+```go
+{{ define "New" }}
+  {{ template "Header" }}
+    {{ template "Menu" }} 
+   <h2>New Name and City</h2>  
+    <form method="POST" action="insert">
+      <label> Name </label><input type="text" name="name" /><br />
+      <label> City </label><input type="text" name="city" /><br />
+      <input type="submit" value="Save user" />
+    </form>
+  {{ template "Footer" }}
+{{ end }}
+```
+
+- At last, we need to create `edit.html` template file for update item, so again create this file in `templates` folder:
+
+```go
+{{ define "Edit" }}
+<h2>Edit Author</h2>
+<form method="POST" action="update">
+	<input type="hidden" name="uid" value="{{ .Id }}" />
+	<label> Name </label><input type="text" name="name" value="{{ .Name }}"  /><br />
+	<input type="submit" value="Save author" />
+</form><br />
+{{ end }}
+```
+
+## Few things about static files
+TBD Is it need for 20 minutes article?
+
+## Authentication using Okta
 To divide our readers and writers of blog posts, it make sense that writers must have account and
 authorized before editing posts, but readers can read without any credentials.
 Let's add Okta login for blog authors:
-```go
 
+```bash
+$ cat auth_handler.go
 ```
 
-First you need to create Okta Platform account and verify you email.
+```go
+package main
+
+import (
+	"bytes"
+	"encoding/base64"
+	"encoding/json"
+	"fmt"
+	"github.com/gorilla/sessions"
+	"github.com/okta/okta-jwt-verifier-golang"
+	"html/template"
+
+	"io/ioutil"
+	"net/http"
+	"net/url"
+	"os"
+)
+
+var (
+	tpl *template.Template
+	state = "ApplicationState"
+	nonce = "NonceNotSetYet"
+	sessionStore = sessions.NewCookieStore([]byte("okta-hosted-login-session-store"))
+)
+
+func generateHTML(w http.ResponseWriter, data interface{}, fn ...string) {
+	templates := template.Must(template.ParseGlob("templates/*"))
+	templates.ExecuteTemplate(w, "layout", data)
+}
+
+
+func index(w http.ResponseWriter, r *http.Request) {
+	generateHTML(w, "threads", "layout", "index")
+}
+
+func LoginHandler(w http.ResponseWriter, r *http.Request) {
+	type customData struct {
+		Profile         map[string]string
+		IsAuthenticated bool
+		BaseUrl         string
+		ClientId        string
+		Issuer          string
+		State           string
+		Nonce           string
+	}
+
+	issuerParts, _ := url.Parse(os.Getenv("ISSUER"))
+	baseUrl := issuerParts.Scheme + "://" + issuerParts.Hostname()
+
+	data := customData{
+		Profile:         getProfileData(r),
+		IsAuthenticated: isAuthenticated(r),
+		BaseUrl:         baseUrl,
+		ClientId:        os.Getenv("CLIENT_ID"),
+		Issuer:          os.Getenv("ISSUER"),
+		State:           state,
+	}
+	tpl.ExecuteTemplate(w, "templates/login.html", data)
+}
+
+func LogoutHandler(w http.ResponseWriter, r *http.Request) {
+	session, err := sessionStore.Get(r, "okta-hosted-login-session-store")
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
+
+	delete(session.Values, "id_token")
+	delete(session.Values, "access_token")
+
+	session.Save(r, w)
+
+	http.Redirect(w, r, "/", http.StatusMovedPermanently)
+}
+
+func ProfileHandler(w http.ResponseWriter, r *http.Request) {
+	type customData struct {
+		Profile         map[string]string
+		IsAuthenticated bool
+	}
+
+	data := customData{
+		Profile:         getProfileData(r),
+		IsAuthenticated: isAuthenticated(r),
+	}
+	tpl.ExecuteTemplate(w, "profile.gohtml", data)
+}
+
+func AuthCodeCallbackHandler(w http.ResponseWriter, r *http.Request) {
+	// Check the state that was returned in the query string is the same as the above state
+	if r.URL.Query().Get("state") != state {
+		fmt.Fprintln(w, "The state was not as expected")
+		return
+	}
+	// Make sure the code was provided
+	if r.URL.Query().Get("code") == "" {
+		fmt.Fprintln(w, "The code was not returned or is not accessible")
+		return
+	}
+
+	exchange := exchangeCode(r.URL.Query().Get("code"), r)
+
+	session, err := sessionStore.Get(r, "okta-custom-login-session-store")
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
+
+	_, verificationError := verifyToken(exchange.IdToken)
+
+	if verificationError != nil {
+		fmt.Println(verificationError)
+	}
+
+	if verificationError == nil {
+		session.Values["id_token"] = exchange.IdToken
+		session.Values["access_token"] = exchange.AccessToken
+
+		session.Save(r, w)
+	}
+
+	http.Redirect(w, r, "/", http.StatusMovedPermanently)
+}
+
+func exchangeCode(code string, r *http.Request) Exchange {
+	authHeader := base64.StdEncoding.EncodeToString(
+		[]byte(os.Getenv("CLIENT_ID") + ":" + os.Getenv("CLIENT_SECRET")))
+
+	q := r.URL.Query()
+	q.Add("grant_type", "authorization_code")
+	q.Add("code", code)
+	q.Add("redirect_uri", "http://localhost:8081/authorization-code/callback")
+
+	url := os.Getenv("ISSUER") + "/v1/token?" + q.Encode()
+
+	req, _ := http.NewRequest("POST", url, bytes.NewReader([]byte("")))
+	h := req.Header
+	h.Add("Authorization", "Basic "+authHeader)
+	h.Add("Accept", "application/json")
+	h.Add("Content-Type", "application/x-www-form-urlencoded")
+	h.Add("Connection", "close")
+	h.Add("Content-Length", "0")
+
+	client := &http.Client{}
+	resp, _ := client.Do(req)
+	body, _ := ioutil.ReadAll(resp.Body)
+	defer resp.Body.Close()
+	var exchange Exchange
+	json.Unmarshal(body, &exchange)
+
+	return exchange
+
+}
+
+func isAuthenticated(r *http.Request) bool {
+	session, err := sessionStore.Get(r, "okta-custom-login-session-store")
+
+	if err != nil || session.Values["id_token"] == nil || session.Values["id_token"] == "" {
+		return false
+	}
+
+	return true
+}
+
+func getProfileData(r *http.Request) map[string]string {
+	m := make(map[string]string)
+
+	session, err := sessionStore.Get(r, "okta-custom-login-session-store")
+
+	if err != nil || session.Values["access_token"] == nil || session.Values["access_token"] == "" {
+		return m
+	}
+
+	reqUrl := os.Getenv("ISSUER") + "/v1/userinfo"
+
+	req, _ := http.NewRequest("GET", reqUrl, bytes.NewReader([]byte("")))
+	h := req.Header
+	h.Add("Authorization", "Bearer "+session.Values["access_token"].(string))
+	h.Add("Accept", "application/json")
+
+	client := &http.Client{}
+	resp, _ := client.Do(req)
+	body, _ := ioutil.ReadAll(resp.Body)
+	defer resp.Body.Close()
+	json.Unmarshal(body, &m)
+
+	return m
+}
+
+func verifyToken(t string) (*jwtverifier.Jwt, error) {
+	fmt.Println(nonce)
+	tv := map[string]string{}
+	tv["nonce"] = nonce
+	tv["aud"] = os.Getenv("CLIENT_ID")
+	jv := jwtverifier.JwtVerifier{
+		Issuer:           os.Getenv("ISSUER"),
+		ClaimsToValidate: tv,
+	}
+
+	result, err := jv.New().VerifyIdToken(t)
+
+	if err != nil {
+		return nil, fmt.Errorf("%s", err)
+	}
+
+	if result != nil {
+		return result, nil
+	}
+
+	return nil, fmt.Errorf("token could not be verified: %s", "")
+}
+
+type Exchange struct {
+	Error            string `json:"error,omitempty"`
+	ErrorDescription string `json:"error_description,omitempty"`
+	AccessToken      string `json:"access_token,omitempty"`
+	TokenType        string `json:"token_type,omitempty"`
+	ExpiresIn        int    `json:"expires_in,omitempty"`
+	Scope            string `json:"scope,omitempty"`
+	IdToken          string `json:"id_token,omitempty"`
+}
+```
+
+First you need to create Okta Developer Account [https://developer.okta.com/signup/](https://developer.okta.com/signup/) and verify you email.
+An Okta Application, configured for Web mode. This is done from the Okta Developer Console and you can find instructions [here](https://developer.okta.com/authentication-guide/implementing-authentication/auth-code#1-setting-up-your-application). When following the wizard, use the default properties. They are are designed to work with our sample applications.
+
 After successfully created account, you need to copy `.env.example` to `.env` and replace with your values:
 
 ```bash
@@ -195,17 +676,75 @@ CLIENT_SECRET=
 ISSUER=https://{yourOktaDomain}.com/oauth2/default
 ```
 
+Now we need to `login.html` template in `templates` folder:
+
+```go
+{{ define "content" }}
+
+<div id="sign-in-widget"></div>
+<script type="text/javascript">
+	var config = {};
+	config.baseUrl = "{{ .BaseUrl }}";
+	config.clientId = "{{ .ClientId }}";
+	config.redirectUri = "http://localhost:8081/authorization-code/callback";
+	config.authParams = {
+		{{/*issuer: "{{ .Issuer }}",*/}}
+		responseType: 'code',
+		{{/*state: "{{ .State }}" || false,*/}}
+		display: 'page',
+		scope: ['openid', 'profile', 'email'],
+		{{/*nonce: '{{ .Nonce }}',*/}}
+	};
+	new OktaSignIn(config).renderEl(
+		{ el: '#sign-in-widget' },
+		function (res) {
+		}
+	);
+</script>
+
+{{ end }}
+```
+
+## Routers
+
+Usually `routers.go` or just `main.go` place where models, handlers and teplates are all together in one synergy:
+
+```go
+package main
+
+import (
+	"net/http"
+)
 
 
+func main() {
+	mux := http.NewServeMux()
+	files := http.FileServer(http.Dir("./static"))
+
+	mux.HandleFunc("/", Index)
+	mux.HandleFunc("/new/post/", New)
+	mux.HandleFunc("/edit/post/", Edit)
+	mux.HandleFunc("/login", LoginHandler)
+	mux.HandleFunc("/logout", LogoutHandler)
+	mux.HandleFunc("/authorization-code/callback", AuthCodeCallbackHandler)
+	mux.Handle("/static/", http.StripPrefix("/static/", files))
+
+	server := &http.Server{
+		Addr:     "0.0.0.0:8081",
+		Handler:  mux,
+	}
+	server.ListenAndServe()
+}
+```
 
 ## Fin
+
 🎉 🎉 🎉 Congratulations! You build your first blog in go. 
 
+## Do Even More with Go
 
-## Some useful references
--  
+Check out more tutorials on Go:
 
+- TBD
 
-
-A quick introduction to HTTP
-Request-response cycle
+If you have any questions, please don’t hesitate to leave a comment below, or ask us on our [Okta Developer Forums](https://devforum.okta.com/). Don't forget to follow us on Twitter [@OktaDev](https://twitter.com/oktadev), on [Facebook](https://www.facebook.com/oktadevelopers) and on [YouTube](https://www.youtube.com/channel/UC5AMiWqFVFxF1q9Ya1FuZ_Q/featured)!

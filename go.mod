@@ -3,7 +3,9 @@ module github.com/andriisoldatenko/go-blog
 require (
 	github.com/cosiner/argv v0.0.0-20181111161405-36fdb9e0bb2d // indirect
 	github.com/derekparker/delve v1.1.0 // indirect
+	github.com/go-pg/pg v6.15.1+incompatible // indirect
 	github.com/gorilla/sessions v1.1.3
+	github.com/jinzhu/inflection v0.0.0-20180308033659-04140366298a // indirect
 	github.com/lestrrat-go/jwx v0.0.0-20180928232350-0d477e6a1f0e // indirect
 	github.com/lestrrat-go/pdebug v0.0.0-20180220043849-39f9a71bcabe // indirect
 	github.com/lib/pq v1.0.0
@@ -18,4 +20,5 @@ require (
 	golang.org/x/arch v0.0.0-20180920145803-b19384d3c130 // indirect
 	golang.org/x/sys v0.0.0-20181121002834-0cf1ed9e522b // indirect
 	gopkg.in/yaml.v2 v2.2.1 // indirect
+	mellium.im/sasl v0.2.1 // indirect
 )

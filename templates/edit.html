@@ -1,0 +1,8 @@
+{{ define "Edit" }}
+<h2>Edit Author</h2>
+<form method="POST" action="update">
+	<input type="hidden" name="uid" value="{{ .Id }}" />
+	<label> Name </label><input type="text" name="name" value="{{ .Name }}"  /><br />
+	<input type="submit" value="Save author" />
+</form><br />
+{{ end }}
