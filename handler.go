@@ -1,6 +1,7 @@
 package main
 
 import (
+	"github.com/gorilla/context"
 	"html/template"
 	"log"
 	"net/http"
@@ -17,14 +18,20 @@ func AllPosts(w http.ResponseWriter, r *http.Request) {
 		panic(err)
 	}
 	t, _ := template.ParseFiles("templates/layout.html", "templates/index.html")
-	t.Execute(w, posts)
+	data := context.Get(r, "data")
+	extra := struct {
+		CustomData
+		Posts []Post
+	}{CustomData: data.(CustomData), Posts: posts}
+	t.Execute(w, extra)
 	defer db.Close()
 }
 
 // Return new blog Post html form on GET
 func NewPost(w http.ResponseWriter, r *http.Request) {
+	data := context.Get(r, "data")
 	t, _ := template.ParseFiles("templates/layout.html", "templates/new.html")
-	t.Execute(w, nil)
+	t.Execute(w, data)
 }
 
 // Create new blog post post using form submit
@@ -32,8 +39,12 @@ func InsertPost(w http.ResponseWriter, r *http.Request) {
 	db := DBConn()
 	if r.Method == "POST" {
 		title := r.FormValue("title")
+		content := r.FormValue("content")
+		email := context.Get(r, "email").(string)
 		post1 := &Post{
 			Title: title,
+			Content: content,
+			AuthorEmail: email,
 		}
 		err := db.Insert(post1)
 		if err != nil {

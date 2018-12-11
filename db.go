@@ -7,25 +7,23 @@ import (
 )
 
 type Author struct {
-	Id          int64
 	Name        string
 	Email       string
-	Password    string
 }
 
 func (u Author) String() string {
-	return fmt.Sprintf("Author<%d %s %v>", u.Id, u.Name, u.Email)
+	return fmt.Sprintf("Author<%s %s>", u.Name, u.Email)
 }
 
 type Post struct {
-	Id       int64
-	Title    string
-	AuthorId int64
-	Author   *Author
+	Id          int64
+	Title       string
+	Content     string
+	AuthorEmail string
 }
 
 func (s Post) String() string {
-	return fmt.Sprintf("Post<%d %s %s>", s.Id, s.Title, s.Author)
+	return fmt.Sprintf("Post<%d %s %s>", s.Id, s.Title, s.AuthorEmail)
 }
 
 
@@ -51,4 +49,13 @@ func createSchema(db *pg.DB) error {
 		}
 	}
 	return nil
+}
+
+func createAuthorProfile(db *pg.DB, profile map[string]string) {
+	fmt.Println(profile)
+	author := &Author{
+		Name: profile["name"],
+		Email: profile["email"],
+	}
+	db.Model(author).Where("email = ?", author.Email).SelectOrInsert()
 }

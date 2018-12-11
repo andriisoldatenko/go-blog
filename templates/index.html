@@ -13,13 +13,13 @@
 	</tr>
 	</thead>
 	<tbody>
-  {{ range . }}
+  {{ range .Posts }}
 	<tr>
-		<tr scope="col">{{ .Id }}</tr>
-		<tr scope="col"> {{ .Name }} </tr>
-		<tr scope="col"><a href="/show?id={{ .Id }}">View</a></tr>
-		<tr scope="col"><a href="/edit?id={{ .Id }}">Edit</a></tr>
-		<tr scope="col"><a href="/delete?id={{ .Id }}">Delete</a><td>
+		<th scope="col">{{ .Id }}</th>
+		<th scope="col"> {{ .Title }} </th>
+		<th scope="col"><a href="/show?id={{ .Id }}">View</a></th>
+		<th scope="col"><a href="/edit?id={{ .Id }}">Edit</a></th>
+		<th scope="col"><a href="/delete?id={{ .Id }}">Delete</a><td>
 	</tr>
   {{ end }}
 	</tbody>

@@ -1,7 +1,14 @@
 {{ define "content" }}
-<h2>New Blog Post</h2>
-<form class="form" method="POST" action="insert">
-	<label> Name </label><input type="text" name="title" /><br />
-	<input type="submit" value="Save post" />
-</form>
+<div class="container">
+	<p>New Blog Post</p>
+	<form action="/new/insert/" method="post">
+		<div class="form-group">
+			<input type="text" name="title" class="form-control" placeholder="Enter title">
+		</div>
+		<div class="form-group">
+			<textarea class="form-control" rows="3"  placeholder="Enter your story"></textarea>
+		</div>
+		<input type="submit" value="Save post" />
+	</form>
+</div>
 {{ end }}

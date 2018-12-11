@@ -3,7 +3,9 @@ module github.com/andriisoldatenko/go-blog
 require (
 	github.com/cosiner/argv v0.0.0-20181111161405-36fdb9e0bb2d // indirect
 	github.com/derekparker/delve v1.1.0 // indirect
-	github.com/go-pg/pg v6.15.1+incompatible // indirect
+	github.com/go-http-utils/logger v0.0.0-20161128092850-f3a42dcdeae6
+	github.com/go-pg/pg v6.15.1+incompatible
+	github.com/gorilla/context v1.1.1
 	github.com/gorilla/sessions v1.1.3
 	github.com/jinzhu/inflection v0.0.0-20180308033659-04140366298a // indirect
 	github.com/lestrrat-go/jwx v0.0.0-20180928232350-0d477e6a1f0e // indirect

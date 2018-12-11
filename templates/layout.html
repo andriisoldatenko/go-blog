@@ -10,6 +10,30 @@
   	<title>Blog</title>
 </head>
 <body>
+<nav class="navbar navbar-expand-lg navbar-light bg-light">
+	<div class="collapse navbar-collapse" id="navbarSupportedContent">
+		<ul class="navbar-nav mr-auto">
+			<li class="nav-item active">
+				<a class="nav-link" href="#">Home <span class="sr-only">(current)</span></a>
+			</li>
+			<li class="nav-item active">
+				<a class="nav-link" href="/new/">Create Post</a>
+			</li>
+	{{ if .IsAuthenticated }}
+			<li class="nav-item">
+				<a class="nav-link" href="/logout/">Logout</a>
+			</li>
+			<li class="nav-item">
+				<a class="nav-link" href="/profile/">{{ .Author.name }}</a>
+			</li>
+	{{ else }}
+			<li class="nav-item">
+				<a class="nav-link" href="/login/">Login</a>
+			</li>
+	{{ end }}
+		</ul>
+	</div>
+</nav>
 <div class="container">
 
 {{ block "content" . }}{{ end }}

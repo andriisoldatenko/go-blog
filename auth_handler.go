@@ -5,12 +5,12 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"github.com/gorilla/context"
 	"github.com/gorilla/sessions"
 	"github.com/okta/okta-jwt-verifier-golang"
 	"html/template"
 	"io/ioutil"
 	"net/http"
-	"net/url"
 	"os"
 )
 
@@ -21,30 +21,50 @@ var (
 )
 
 
+type Exchange struct {
+	Error            string `json:"error,omitempty"`
+	ErrorDescription string `json:"error_description,omitempty"`
+	AccessToken      string `json:"access_token,omitempty"`
+	TokenType        string `json:"token_type,omitempty"`
+	ExpiresIn        int    `json:"expires_in,omitempty"`
+	Scope            string `json:"scope,omitempty"`
+	IdToken          string `json:"id_token,omitempty"`
+}
+
+type CustomData struct {
+	Author          map[string]string
+	IsAuthenticated bool
+	Email           string
+}
+
+func AuthHandler(next http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		author := getAuthorData(r)
+		data := CustomData{
+			Author:         author,
+			IsAuthenticated: isAuthenticated(r),
+		}
+		context.Set(r, "data", data)
+		context.Set(r, "email", author["email"])
+		next.ServeHTTP(w, r)
+	}
+}
+
 func LoginHandler(w http.ResponseWriter, r *http.Request) {
-	type customData struct {
-		Profile         map[string]string
-		IsAuthenticated bool
-		BaseUrl         string
-		ClientId        string
-		Issuer          string
-		State           string
-		Nonce           string
-	}
+	nonce, _ = GenerateNonce()
+	var redirectPath string
 
-	issuerParts, _ := url.Parse(os.Getenv("ISSUER"))
-	baseUrl := issuerParts.Scheme + "://" + issuerParts.Hostname()
+	q := r.URL.Query()
+	q.Add("client_id", os.Getenv("CLIENT_ID"))
+	q.Add("response_type", "code")
+	q.Add("response_mode", "query")
+	q.Add("scope", "openid profile email")
+	q.Add("redirect_uri", "http://localhost:8081/authorization-code/callback")
+	q.Add("state", state)
+	q.Add("nonce", nonce)
+	redirectPath = os.Getenv("ISSUER") + "/v1/authorize?" + q.Encode()
 
-	data := customData{
-		Profile:         getProfileData(r),
-		IsAuthenticated: isAuthenticated(r),
-		BaseUrl:         baseUrl,
-		ClientId:        os.Getenv("CLIENT_ID"),
-		Issuer:          os.Getenv("ISSUER"),
-		State:           state,
-	}
-	tpl := template.Must(template.ParseFiles("templates/layout.html", "templates/login.html"))
-	tpl.Execute(w, data)
+	http.Redirect(w, r, redirectPath, http.StatusMovedPermanently)
 }
 
 func LogoutHandler(w http.ResponseWriter, r *http.Request) {
@@ -55,23 +75,15 @@ func LogoutHandler(w http.ResponseWriter, r *http.Request) {
 
 	delete(session.Values, "id_token")
 	delete(session.Values, "access_token")
-
+	context.Clear(r)
 	session.Save(r, w)
 
 	http.Redirect(w, r, "/", http.StatusMovedPermanently)
 }
 
 func ProfileHandler(w http.ResponseWriter, r *http.Request) {
-	type customData struct {
-		Profile         map[string]string
-		IsAuthenticated bool
-	}
-
-	data := customData{
-		Profile:         getProfileData(r),
-		IsAuthenticated: isAuthenticated(r),
-	}
-	tpl := template.Must(template.ParseFiles("templates/layout.html", "templates/profile.html"))
+	data := context.Get(r, "data")
+	tpl, _ := template.ParseFiles("templates/layout.html", "templates/profile.html")
 	tpl.Execute(w, data)
 }
 
@@ -89,7 +101,7 @@ func AuthCodeCallbackHandler(w http.ResponseWriter, r *http.Request) {
 
 	exchange := exchangeCode(r.URL.Query().Get("code"), r)
 
-	session, err := sessionStore.Get(r, "okta-custom-login-session-store")
+	session, err := sessionStore.Get(r, "okta-hosted-login-session-store")
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
@@ -107,6 +119,8 @@ func AuthCodeCallbackHandler(w http.ResponseWriter, r *http.Request) {
 		session.Save(r, w)
 	}
 
+	db := DBConn()
+	createAuthorProfile(db, getAuthorData(r))
 	http.Redirect(w, r, "/", http.StatusMovedPermanently)
 }
 
@@ -141,7 +155,7 @@ func exchangeCode(code string, r *http.Request) Exchange {
 }
 
 func isAuthenticated(r *http.Request) bool {
-	session, err := sessionStore.Get(r, "okta-custom-login-session-store")
+	session, err := sessionStore.Get(r, "okta-hosted-login-session-store")
 
 	if err != nil || session.Values["id_token"] == nil || session.Values["id_token"] == "" {
 		return false
@@ -150,10 +164,10 @@ func isAuthenticated(r *http.Request) bool {
 	return true
 }
 
-func getProfileData(r *http.Request) map[string]string {
+func getAuthorData(r *http.Request) map[string]string {
 	m := make(map[string]string)
 
-	session, err := sessionStore.Get(r, "okta-custom-login-session-store")
+	session, err := sessionStore.Get(r, "okta-hosted-login-session-store")
 
 	if err != nil || session.Values["access_token"] == nil || session.Values["access_token"] == "" {
 		return m
@@ -196,14 +210,4 @@ func verifyToken(t string) (*jwtverifier.Jwt, error) {
 	}
 
 	return nil, fmt.Errorf("token could not be verified: %s", "")
-}
-
-type Exchange struct {
-	Error            string `json:"error,omitempty"`
-	ErrorDescription string `json:"error_description,omitempty"`
-	AccessToken      string `json:"access_token,omitempty"`
-	TokenType        string `json:"token_type,omitempty"`
-	ExpiresIn        int    `json:"expires_in,omitempty"`
-	Scope            string `json:"scope,omitempty"`
-	IdToken          string `json:"id_token,omitempty"`
 }
