@@ -100,10 +100,8 @@ In Go typically we are using type `struct` for mapping database tables. In our b
 
 ```
 type Author struct {
-	Id          int64
 	Name        string
 	Email       string
-	Password    string
 }
 ```
 
@@ -112,10 +110,9 @@ and `Post`, and use has many posts relationship.
 ```
 type Post struct {
 	Id          int64
-	Author      *Author
-	AuthorId    int64
 	Title       string
 	Content     string
+	AuthorEmail string
 }
 ```
 
@@ -135,25 +132,23 @@ import (
 )
 
 type Author struct {
-	Id          int64
 	Name        string
 	Email       string
-	Password    string
 }
 
 func (u Author) String() string {
-	return fmt.Sprintf("Author<%d %s %v>", u.Id, u.Name, u.Email)
+	return fmt.Sprintf("Author<%s %s>", u.Name, u.Email)
 }
 
 type Post struct {
-	Id       int64
-	Title    string
-	AuthorId int64
-	Author   *Author
+	Id          int64
+	Title       string
+	Content     string
+	AuthorEmail string
 }
 
 func (s Post) String() string {
-	return fmt.Sprintf("Post<%d %s %s>", s.Id, s.Title, s.Author)
+	return fmt.Sprintf("Post<%d %s %s>", s.Id, s.Title, s.AuthorEmail)
 }
 
 
@@ -179,6 +174,15 @@ func createSchema(db *pg.DB) error {
 		}
 	}
 	return nil
+}
+
+func createAuthorProfile(db *pg.DB, profile map[string]string) {
+	fmt.Println(profile)
+	author := &Author{
+		Name: profile["name"],
+		Email: profile["email"],
+	}
+	db.Model(author).Where("email = ?", author.Email).SelectOrInsert()
 }
 ``` 
 
@@ -268,6 +272,7 @@ $ cat handler.go
 package main
 
 import (
+	"github.com/gorilla/context"
 	"html/template"
 	"log"
 	"net/http"
@@ -284,14 +289,20 @@ func AllPosts(w http.ResponseWriter, r *http.Request) {
 		panic(err)
 	}
 	t, _ := template.ParseFiles("templates/layout.html", "templates/index.html")
-	t.Execute(w, posts)
+	data := context.Get(r, "data")
+	extra := struct {
+		CustomData
+		Posts []Post
+	}{CustomData: data.(CustomData), Posts: posts}
+	t.Execute(w, extra)
 	defer db.Close()
 }
 
 // Return new blog Post html form on GET
 func NewPost(w http.ResponseWriter, r *http.Request) {
+	data := context.Get(r, "data")
 	t, _ := template.ParseFiles("templates/layout.html", "templates/new.html")
-	t.Execute(w, nil)
+	t.Execute(w, data)
 }
 
 // Create new blog post post using form submit
@@ -299,8 +310,12 @@ func InsertPost(w http.ResponseWriter, r *http.Request) {
 	db := DBConn()
 	if r.Method == "POST" {
 		title := r.FormValue("title")
+		content := r.FormValue("content")
+		email := context.Get(r, "email").(string)
 		post1 := &Post{
 			Title: title,
+			Content: content,
+			AuthorEmail: email,
 		}
 		err := db.Insert(post1)
 		if err != nil {
@@ -333,6 +348,56 @@ func EditPost(w http.ResponseWriter, r *http.Request) {
 Go has powerful template engine out of box.
 Now we need to create folder `templates` and put all needed templates inside.
 
+- Create a file name `layout.html` inside the `templates` folder for using as based template for render all templates:
+```go
+<!doctype html>
+<html lang="en">
+<head>
+	<meta charset="utf-8">
+	<meta http-equiv="X-UA-Compatible" content="IE=9">
+	<meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+	<link href="/static/css/bootstrap.min.css" rel="stylesheet">
+	<link href="/static/css/font-awesome.min.css" rel="stylesheet">
+
+  	<title>Blog</title>
+</head>
+<body>
+<nav class="navbar navbar-expand-lg navbar-light bg-light">
+	<div class="collapse navbar-collapse" id="navbarSupportedContent">
+		<ul class="navbar-nav mr-auto">
+			<li class="nav-item active">
+				<a class="nav-link" href="#">Home <span class="sr-only">(current)</span></a>
+			</li>
+			<li class="nav-item active">
+				<a class="nav-link" href="/new/">Create Post</a>
+			</li>
+	{{ if .IsAuthenticated }}
+			<li class="nav-item">
+				<a class="nav-link" href="/logout/">Logout</a>
+			</li>
+			<li class="nav-item">
+				<a class="nav-link" href="/profile/">{{ .Author.name }}</a>
+			</li>
+	{{ else }}
+			<li class="nav-item">
+				<a class="nav-link" href="/login/">Login</a>
+			</li>
+	{{ end }}
+		</ul>
+	</div>
+</nav>
+<div class="container">
+
+{{ block "content" . }}{{ end }}
+
+</div> <!-- /container -->
+
+<script src="/static/js/jquery-2.1.1.min.js"></script>
+<script src="/static/js/bootstrap.min.js"></script>
+</body>
+</html>
+```
+
 - Create a file named `index.html` inside the `templates` folder and put the following code inside it.
 
 ```go
@@ -351,13 +416,13 @@ Now we need to create folder `templates` and put all needed templates inside.
 	</tr>
 	</thead>
 	<tbody>
-  {{ range . }}
+  {{ range .Posts }}
 	<tr>
-		<tr scope="col">{{ .Id }}</tr>
-		<tr scope="col"> {{ .Name }} </tr>
-		<tr scope="col"><a href="/show?id={{ .Id }}">View</a></tr>
-		<tr scope="col"><a href="/edit?id={{ .Id }}">Edit</a></tr>
-		<tr scope="col"><a href="/delete?id={{ .Id }}">Delete</a><td>
+		<th scope="col">{{ .Id }}</th>
+		<th scope="col"> {{ .Title }} </th>
+		<th scope="col"><a href="/show?id={{ .Id }}">View</a></th>
+		<th scope="col"><a href="/edit?id={{ .Id }}">Edit</a></th>
+		<th scope="col"><a href="/delete?id={{ .Id }}">Delete</a><td>
 	</tr>
   {{ end }}
 	</tbody>
@@ -369,11 +434,18 @@ Now we need to create folder `templates` and put all needed templates inside.
 
 ```go
 {{ define "content" }}
-<h2>New Blog Post</h2>
-<form class="form" method="POST" action="insert">
-	<label> Name </label><input type="text" name="title" /><br />
-	<input type="submit" value="Save post" />
-</form>
+<div class="container">
+	<p>New Blog Post</p>
+	<form action="/new/insert/" method="post">
+		<div class="form-group">
+			<input type="text" name="title" class="form-control" placeholder="Enter title">
+		</div>
+		<div class="form-group">
+			<textarea class="form-control" rows="3"  placeholder="Enter your story"></textarea>
+		</div>
+		<input type="submit" value="Save post" />
+	</form>
+</div>
 {{ end }}
 ```
 
@@ -410,12 +482,12 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"github.com/gorilla/context"
 	"github.com/gorilla/sessions"
 	"github.com/okta/okta-jwt-verifier-golang"
 	"html/template"
 	"io/ioutil"
 	"net/http"
-	"net/url"
 	"os"
 )
 
@@ -426,30 +498,50 @@ var (
 )
 
 
+type Exchange struct {
+	Error            string `json:"error,omitempty"`
+	ErrorDescription string `json:"error_description,omitempty"`
+	AccessToken      string `json:"access_token,omitempty"`
+	TokenType        string `json:"token_type,omitempty"`
+	ExpiresIn        int    `json:"expires_in,omitempty"`
+	Scope            string `json:"scope,omitempty"`
+	IdToken          string `json:"id_token,omitempty"`
+}
+
+type CustomData struct {
+	Author          map[string]string
+	IsAuthenticated bool
+	Email           string
+}
+
+func AuthHandler(next http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		author := getAuthorData(r)
+		data := CustomData{
+			Author:         author,
+			IsAuthenticated: isAuthenticated(r),
+		}
+		context.Set(r, "data", data)
+		context.Set(r, "email", author["email"])
+		next.ServeHTTP(w, r)
+	}
+}
+
 func LoginHandler(w http.ResponseWriter, r *http.Request) {
-	type customData struct {
-		Profile         map[string]string
-		IsAuthenticated bool
-		BaseUrl         string
-		ClientId        string
-		Issuer          string
-		State           string
-		Nonce           string
-	}
+	nonce, _ = GenerateNonce()
+	var redirectPath string
 
-	issuerParts, _ := url.Parse(os.Getenv("ISSUER"))
-	baseUrl := issuerParts.Scheme + "://" + issuerParts.Hostname()
+	q := r.URL.Query()
+	q.Add("client_id", os.Getenv("CLIENT_ID"))
+	q.Add("response_type", "code")
+	q.Add("response_mode", "query")
+	q.Add("scope", "openid profile email")
+	q.Add("redirect_uri", "http://localhost:8081/authorization-code/callback")
+	q.Add("state", state)
+	q.Add("nonce", nonce)
+	redirectPath = os.Getenv("ISSUER") + "/v1/authorize?" + q.Encode()
 
-	data := customData{
-		Profile:         getProfileData(r),
-		IsAuthenticated: isAuthenticated(r),
-		BaseUrl:         baseUrl,
-		ClientId:        os.Getenv("CLIENT_ID"),
-		Issuer:          os.Getenv("ISSUER"),
-		State:           state,
-	}
-	tpl := template.Must(template.ParseFiles("templates/layout.html", "templates/login.html"))
-	tpl.Execute(w, data)
+	http.Redirect(w, r, redirectPath, http.StatusMovedPermanently)
 }
 
 func LogoutHandler(w http.ResponseWriter, r *http.Request) {
@@ -460,23 +552,15 @@ func LogoutHandler(w http.ResponseWriter, r *http.Request) {
 
 	delete(session.Values, "id_token")
 	delete(session.Values, "access_token")
-
+	context.Clear(r)
 	session.Save(r, w)
 
 	http.Redirect(w, r, "/", http.StatusMovedPermanently)
 }
 
 func ProfileHandler(w http.ResponseWriter, r *http.Request) {
-	type customData struct {
-		Profile         map[string]string
-		IsAuthenticated bool
-	}
-
-	data := customData{
-		Profile:         getProfileData(r),
-		IsAuthenticated: isAuthenticated(r),
-	}
-	tpl := template.Must(template.ParseFiles("templates/layout.html", "templates/profile.html"))
+	data := context.Get(r, "data")
+	tpl, _ := template.ParseFiles("templates/layout.html", "templates/profile.html")
 	tpl.Execute(w, data)
 }
 
@@ -494,7 +578,7 @@ func AuthCodeCallbackHandler(w http.ResponseWriter, r *http.Request) {
 
 	exchange := exchangeCode(r.URL.Query().Get("code"), r)
 
-	session, err := sessionStore.Get(r, "okta-custom-login-session-store")
+	session, err := sessionStore.Get(r, "okta-hosted-login-session-store")
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
@@ -512,6 +596,8 @@ func AuthCodeCallbackHandler(w http.ResponseWriter, r *http.Request) {
 		session.Save(r, w)
 	}
 
+	db := DBConn()
+	createAuthorProfile(db, getAuthorData(r))
 	http.Redirect(w, r, "/", http.StatusMovedPermanently)
 }
 
@@ -546,7 +632,7 @@ func exchangeCode(code string, r *http.Request) Exchange {
 }
 
 func isAuthenticated(r *http.Request) bool {
-	session, err := sessionStore.Get(r, "okta-custom-login-session-store")
+	session, err := sessionStore.Get(r, "okta-hosted-login-session-store")
 
 	if err != nil || session.Values["id_token"] == nil || session.Values["id_token"] == "" {
 		return false
@@ -555,10 +641,10 @@ func isAuthenticated(r *http.Request) bool {
 	return true
 }
 
-func getProfileData(r *http.Request) map[string]string {
+func getAuthorData(r *http.Request) map[string]string {
 	m := make(map[string]string)
 
-	session, err := sessionStore.Get(r, "okta-custom-login-session-store")
+	session, err := sessionStore.Get(r, "okta-hosted-login-session-store")
 
 	if err != nil || session.Values["access_token"] == nil || session.Values["access_token"] == "" {
 		return m
@@ -601,16 +687,6 @@ func verifyToken(t string) (*jwtverifier.Jwt, error) {
 	}
 
 	return nil, fmt.Errorf("token could not be verified: %s", "")
-}
-
-type Exchange struct {
-	Error            string `json:"error,omitempty"`
-	ErrorDescription string `json:"error_description,omitempty"`
-	AccessToken      string `json:"access_token,omitempty"`
-	TokenType        string `json:"token_type,omitempty"`
-	ExpiresIn        int    `json:"expires_in,omitempty"`
-	Scope            string `json:"scope,omitempty"`
-	IdToken          string `json:"id_token,omitempty"`
 }
 ```
 
@@ -656,13 +732,16 @@ Now we need to `login.html` template in `templates` folder:
 
 ## Routers
 
-Usually `routers.go` or just `main.go` place where models, handlers and tepmlates are all together in one synergy:
+Usually `routers.go` or just `main.go` place where models, handlers and templates are all together in one synergy:
 
 ```go
 package main
 
 import (
 	"net/http"
+	"os"
+
+	"github.com/go-http-utils/logger"
 )
 
 
@@ -670,20 +749,17 @@ func main() {
 	mux := http.NewServeMux()
 	files := http.FileServer(http.Dir("./static"))
 
-	mux.HandleFunc("/", AllPosts)
-	mux.HandleFunc("/new", NewPost)
-	mux.HandleFunc("/new/insert", InsertPost)
-	mux.HandleFunc("/edit", EditPost)
-	mux.HandleFunc("/login", LoginHandler)
-	mux.HandleFunc("/logout", LogoutHandler)
-	mux.HandleFunc("/authorization-code/callback", AuthCodeCallbackHandler)
+	mux.HandleFunc("/", AuthHandler(AllPosts))
+	mux.HandleFunc("/new/", AuthHandler(NewPost))
+	mux.HandleFunc("/new/insert/", AuthHandler(InsertPost))
+	mux.HandleFunc("/edit/", EditPost)
+	mux.HandleFunc("/login/", LoginHandler)
+	mux.HandleFunc("/logout/", LogoutHandler)
+	mux.HandleFunc("/authorization-code/callback/", AuthCodeCallbackHandler)
+	mux.HandleFunc("/profile/", AuthHandler(ProfileHandler))
 	mux.Handle("/static/", http.StripPrefix("/static/", files))
 
-	server := &http.Server{
-		Addr:     "0.0.0.0:8081",
-		Handler:  mux,
-	}
-	server.ListenAndServe()
+	http.ListenAndServe("0.0.0.0:8081", logger.Handler(mux, os.Stdout, logger.DevLoggerType))
 }
 ```
 
