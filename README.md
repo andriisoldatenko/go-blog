@@ -10,26 +10,34 @@ tags: [go, html, blog]
 
 ## Go and web applications
 
-Nowadays, web applications are the most used kind of software applications. Each day we surf the internet using laptops and mobile devices, we play in games and watch TV shows. HTTP is the basis for communicating in web. The first version of HTTP (created by Tim Berners-Lee in 1990) was a simple protocol created to help the adoption of the World Wide Web. Everything you see on a web page is transported through this simple text-based protocol. HTTP is a stateless, text-based, request-response protocol that uses the client-server computing model. Go as many other programming languages has all needed out-of-box 
-for supporting http through [`net/http`](https://golang.org/pkg/net/http/) package.
+Building web apps in Go is simple, fun, and most of all: performant. If you come from an interpreted background (like myself, with Python), you might be surprised as how fast your Go apps can be! If you're all about minimizing your server-side latencies while still having a fun time writing code: you'll probably love Go as much as I do! =)
+
+In this tutorial, I'll walk you through building a simple blog in Go using popular open source libraries (and an API service). If you'd like to see how to craft a simple, real-world Go application, continue reading!
 
 ## Prerequisites
 
-Before we dig into building web app in Go, please make sure you have installed latest Go in your 
-operating system. To check current installed version you can run:
+Before we dig into building web app in Go, please make sure you have installed the latest version of Go on your operating system. To see which version you have installed you can run:
 
 ```bash
 $ go version
 go version go1.11.2 darwin/amd64
 ```
 
-## Writing your first Go web app
+If you don't have Go installed, please go [Install the Go tools](https://golang.org/doc/install#install) and make sure you download the [latest stable version](https://golang.org/dl/) for your operating system. In this tutorial I'll be using Go 1.11.2, any version of Go 1.11 or higher should be OK though.
 
-I prefer to start everything by example, let's create first file `server.go` using you favorite text editor:
+Once you've got Go installed, try running `$ go version` in your terminal again and make sure you've got it working properly.
+
+## Write Your First Go Web App
+
+As I mentioned before, in this tutorial, you'll be building a blog. So the first thing you'll want to do is go create a `go-blog` folder to hold your project source and then create your first go file, `server.go`, in that folder.
 
 ```bash
-$ cat server.go
+mkdir go-blog
+cd go-blog
+touch server.go
 ```
+
+Now, copy the code below and paste it into your new `server.go` file. This file will contain the main source of your web server (app).
 
 ```go
 package main
@@ -49,78 +57,56 @@ func main() {
 }
 ```
 
-A _handler_ receives and processes the HTTP request sent from the client. It also calls the 
-template engine to generate the HTML and finally bundles data into the HTTP response to be sent 
-back to the client.
+A *handler* receives and processes HTTP requests sent from the client. In this case, your handler function also uses the Go template engine (which is built into the language) to generate some HTML and finally bundles data into the HTTP response which is eventually sent back to the client.
 
-Now we can build and run our first go web app!:
+Simple, right?
+
+Now that your code is ready to roll, you can build and run your first go web app!
 
 ```bash
 go run server.go
 ```
 
-Note: `go run` - build and run your go program in the same time.
+**NOTE**: `go run` will both build (compile) and run your go program. It's a great way to test your application while in development, since you don't need to compile and then run your app, you can just do it all at once!
 
-Now if you open you browser and go to `http://localhost:8081/Okta`, you can see:
+Now, if you open your browser and go to `http://localhost:8081/okta`, you should see:
 
-```bash
-$ curl http://localhost:8081/okta
+```
 Hello okta!
 ```
 
-## Go modules.
+### Sidenote: Go Modules
 
-Since Go 1.11 has been released we finally can see go official way for dependency management.
-However, modules are an experimental feature in Go 1.11, go community are going to finalize it in
-Go 1.12. More details in [Go 1.11 Modules](https://github.com/golang/go/wiki/Modules).
+Since Go 1.11, there is *finally* an official solution for dependency management: [Go modules](https://github.com/golang/go/wiki/Modules)! While this feature is still technically experimental, it's already been widely adopted by the Go community and is considered a best practice.
 
-### Create project folder
+The rest of this tutorial assumes you're using Go 1.11, primarily because you'll be creating your Go blog as a module, which means you won't need to place your project folder in a special location: you can store your Go code anywhere you want!
 
-Quick start with Go Modules:
+## Initialize Your Go Project
+
+Since you've already created a `go-blog` project folder above, let's continue using this folder. All you need to do to initialize it is to run:
 
 ```bash
-$ mkdir -p $HOME/work/go-blog
-$ cd $HOME/work/go-blog
-$ go mod init github.com/you/go-blog
-$ ls -la
--rw-r--r--    1 andrii  staff    30 Dec 10 14:02 go.mod
--rw-r--r--    1 andrii  staff  1374 Dec 10 14:01 main.go
-$ cat go.mod
-module github.com/you/go-blog
+$ go mod init github.com/<your-github-username>/go-blog
 ```
 
+The `go mod init` command (and be sure to substitute in your proper GitHub username) will initialize this folder as a Go module, meaning all of your future dependency management operations will work properly.
 
-Now we can write some code with dependencies.
+When you run the `go mod init` command, Go will create a new `go.mod` file in your project folder. This file is what Go uses to detect and work with module dependencies.
 
-## Let's build a simple and modern blog platform
+Now run the following commands to prepare your environment:
 
-## Models
-
-In Go typically we are using type `struct` for mapping database tables. In our blog app, we need two models or structs `Author`:
-
-```
-type Author struct {
-	Name        string
-	Email       string
-}
-```
-
-and `Post`, and use has many posts relationship.
-
-```
-type Post struct {
-	Id          int64
-	Title       string
-	Content     string
-	AuthorEmail string
-}
-```
-
-And now we can create schema and connect to DB:
-Let's create `db.go` file where all database related code are placed in `go-blog` folder:
 ```bash
-$ cat db.go
+rm server.go
+touch main.go
 ```
+
+Your blog's main function (where everything starts) will be placed in the `main.go` file as we go along. The old `server.go` file you had created before can be safely deleted as we won't need it any longer.
+
+## Create Your Go Database Models
+
+In Go, you will typically use a `struct` for mapping data models to a database. In this blog app, you'll need two models:  `Author` (which represents a blog author), and `Post` (which represents a blog post).
+
+Go ahead and create a `main.go` file and paste in the following code:
 
 ```go
 package main
@@ -184,10 +170,27 @@ func createAuthorProfile(db *pg.DB, profile map[string]string) {
 	}
 	db.Model(author).Where("email = ?", author.Email).SelectOrInsert()
 }
-``` 
+```
 
-Before we try to build model related code, we should return back to Go modules, and `go-pg` as dependency:
-It's very easy, as soon you run `go build` or `go run`, go will do it automatically:
+You might have noticed that in this file we're using the [go-pg](https://github.com/go-pg/pg) library, which is a popular ORM for working with [Postgres](https://www.postgresql.org/) in Go. I <3 Postgres and hope you do too!
+
+**PS**: If you're looking for a way to scale your existing Postgres databases for very high throughput loads, be sure to check out [Citus Data](https://www.citusdata.com/). They've built a very cool Postgres extension which makes scaling Postgres simple. I highly recommend it.
+
+
+Now that your database code has been written, why not try to run it? Go to your terminal and try to run the `main.go` program you just built.
+
+```bash
+go run main.go
+```
+
+If you can see error like this:
+
+```bash
+main.go:7:5: cannot find package "github.com/go-pg/pg" in any of:
+```
+
+Try to run `go mod init github.com/andriisoldatenko/go-blog` and than run again `go run main.go`. Please don't forget to replace `andriisoldatenko` to you username.
+AHA! Did you see what happened there? If all went well, you should have seen output like the following:
 
 ```bash
 go run main.go
@@ -197,15 +200,28 @@ go: finding github.com/jinzhu/inflection latest
 ...
 ```
 
-Now you can see another issue with we forgot to add / install our database and by default we are trying to reach localhost:5432 PostgreSQL instance:
-```
+Even though you didn't explicitly install the `go-pg` library, when Go looked at your code and attempted to build your project, it noticed that the `go-pg` dependency was missing, and automatically downloaded it from GitHub for you! Pretty amazing, right?
+
+Anyhow, you should also have gotten an error, however, that looks something like this:
+
+```bash
 panic: dial tcp [::1]:5432: connect: connection refused
 ```
-It means we need to configure our database.
 
-## Database
+This is expected since you didn't configure your database at all, and (probably) didn't have a Postgres database running already. Let's get this all set up.
 
-For storage in selected cool DB PostgreSQL as the database, let's pull latest version using Docker:
+## Set Up a Postgres Database
+
+
+You have a couple of options on how to run Postgres.
+
+If you're on a Mac, you can always use Postgres via [Postgres app](https://postgresapp.com/). It's the simplest way to get Postgres running on your Mac.
+
+If you're on some sort of *nix OS, you can always install Postgres via your favorite package manager (on Debian-based distributions this means you'd likely install the `postgresql` package).
+
+Finally, if you're super hip and into [containerizing everything](https://www.youtube.com/watch?v=gES4-X6y278), you might want to just install Postgres via [Docker](https://www.docker.com/).
+
+Installing and managing Postgres is a bit out of scope for this article, so I'll let you decide which method to use. But… For simplicity's sake, I'll show you how to set up Postgres in a Docker container (because that's how I roll).
 
 ```bash
 $ docker run --name postgresql -itd --restart always \
@@ -216,7 +232,9 @@ $ docker run --name postgresql -itd --restart always \
     sameersbn/postgresql:10
 ```
 
-Now we can check, that database is ready to accept connections:
+**NOTE**: You'll notice that in my `docker` command I'm using some specific folders to store my data. I'm also defining a database username and password. You'll want to adjust these settings accordingly for your environment.
+
+Once this command has finished running, you can then check to ensure your shiny new Postgres database is ready to accept incoming connections by running the command below.
 
 ```bash
 docker logs -f postgresql
@@ -227,10 +245,11 @@ docker logs -f postgresql
 2018-11-21 16:20:04.801 UTC [1105] LOG:  database system was shut down at 2018-11-21 16:20:04 UTC
 2018-11-21 16:20:04.834 UTC [1] LOG:  database system is ready to accept connections
 ```
-And also it always makes sense to try to connect using `psql` command line tool:
+
+Because I'm paranoid and like to make sure things are working as expected, I also like to connect to my Postgres DB manually using the `psql` CLI tool as well:
 
 ```bash
- psql -h localhost -U blog -d blog_db -p 5432
+psql -h localhost -U blog -d blog_db -p 5432
 Password for user blog:
 psql (10.5, server 10.4 (Ubuntu 10.4-2.pgdg18.04+1))
 Type "help" for help.
@@ -240,33 +259,43 @@ Did not find any relations.
 blog_db=>
 ```
 
-As you can see, there is no any tables in our just created database `blog`. In real world application, you need to create  
+As you can see above, I was able to connect to Postgres and verify that there are no tables in the `blog` DB just yet. So… Let's work on fixing that. =)
 
-## Integrate DB with models
+## Initialize Postgres Tables
 
-Now we can edit our `main.go` to replace with DB connection settings:
+
+Now that you have Postgres running, you need to do initialize your database tables. Once that's done, things should be workable!
+
+In order to get this working, you need to tell your application how to properly connect to your shiny new Postgres database. To do this, open up `main.go` and find your DB connection settings (they should look like this):
 
 ```go
-db := pg.Connect(&pg.Options{
-    Database: "blog_db",
-    User: "blog",
-    Password: "blog_secret_password",
-})
+func DBConn() (db *pg.DB) {
+	db = pg.Connect(&pg.Options{
+		Database: "blog_db",
+		User: "blog",
+		Password: "blog_secret_password",
+	})
+	return db
+}
 ```
 
-If you run `go run main.go` you can see that we generated tables and insert `Author` and `Post`:
+Now, substitute in the appropriate connection settings for your Postgres instance.
+
+If you now run `go run main.go`, you can see that your tables will now have been created to hold your application's authors and posts.
+
 ```bash
 Author<1 admin >
 [Author<1 admin >]
 Post<1 Cool story Author<1 admin >>
 ```
 
-## Handlers or views
-A view function, or view for short, is simply a Go function that takes a Web request and write to response object. In our example this response can be the HTML contents of a web page, or a redirect, or a 404 error, or an XML document, or an image . . . or anything, really. The view itself contains whatever arbitrary logic is necessary to return that response. This code can live anywhere you want, as long as it’s on your Python path. There’s no other requirement–no "magic," so to speak.
+## Create the Go Handlers
 
-```bash
-$ cat handler.go
-```
+Now that the basic database models are ready and functional, let's go ahead and create the handlers. The handlers are the Go functions that will support the blog's functionality: creating posts, viewing posts, etc.
+
+You'll need to create a handler for each piece of functionality in the app.
+
+To get started, copy and paste the code below into a new file named `handlers.go`.
 
 ```go
 package main
@@ -321,7 +350,6 @@ func InsertPost(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			panic(err)
 		}
-		log.Println("Create Blog Post: Title: " + title)
 	}
 	defer db.Close()
 	http.Redirect(w, r, "/", 301)
@@ -343,12 +371,24 @@ func EditPost(w http.ResponseWriter, r *http.Request) {
 }
 ```
 
-## Create templates
 
-Go has powerful template engine out of box.
-Now we need to create folder `templates` and put all needed templates inside.
+You can see by looking through the code above that:
 
-- Create a file name `layout.html` inside the `templates` folder for using as based template for render all templates:
+- The `AllPosts` function displays all posts by pulling them out of the database and displaying them in a template (which hasn't yet been built).
+- The `NewPost` function displays the HTML form which allows a user to create a new post.
+- The `InsertPost` function takes a new post and stores it in the database.
+- Finally, the `EditPost` function allows a user to edit a post.
+
+**NOTE**: I didn't implement post deletion here. This is something you should try to implement yourself! It'll be fun! Hint: here's a [documentation link](https://godoc.org/github.com/go-pg/pg#DB.Delete) you may find useful.
+
+## Create Go Templates
+
+One of the things I love most about Go is that it comes with an out-of-the-box template engine that is really powerful.
+
+To make use of Go's templating engine, all you need to do is create a new folder named `templates` in your project directory and define your template files inside.
+
+Firstly, create `templates/layout.html` and paste the following code into this file.
+
 ```go
 <!doctype html>
 <html lang="en">
@@ -398,9 +438,11 @@ Now we need to create folder `templates` and put all needed templates inside.
 </html>
 ```
 
-- Create a file named `index.html` inside the `templates` folder and put the following code inside it.
+This is a base template that all other templates will inject their HTML into. Keeping it separated like this makes it easier to build complex UIs with minimal code reuse.
 
-```go
+Next, create a file named `templates/index.html` and paste the following code inside of it. This file will hold all of the app's home page markup. This page will be used to display all blog posts (ordered by date, descending).
+
+```html
 {{ define "content" }}
 <div class="container">
     <p> All Posts</p>
@@ -430,9 +472,10 @@ Now we need to create folder `templates` and put all needed templates inside.
 {{ end }}
 ```
 
-- Next create a file named `new.html` inside the `templates` folder and put the following code inside it.
 
-```go
+Now, create a file named `templates/new.html` and paste in the following code. This markup will be displayed if a user wants to create a new post.
+
+```html
 {{ define "content" }}
 <div class="container">
 	<p>New Blog Post</p>
@@ -449,9 +492,9 @@ Now we need to create folder `templates` and put all needed templates inside.
 {{ end }}
 ```
 
-- At last, create `edit.html` template file for update blog post, so again create this file in `templates` folder:
+Finally, create a file named `templates/edit.html`. This file will hold the markup that renders the post editing UI. Paste the following code into this file.
 
-```go
+```html
 {{ define "content" }}
 <h2>Edit Plog Post</h2>
 <form method="POST" action="update">
@@ -462,23 +505,22 @@ Now we need to create folder `templates` and put all needed templates inside.
 {{ end }}
 ```
 
-## Few things about static files
-TBD Is it need for 20 minutes article?
+## Add User Authentication to Your Go App
 
-## Authentication using Okta
-To divide our readers and writers of blog posts, it make sense that writers must have account and
-authorized before editing posts, but readers can read without any credentials.
-Let's add Okta login for blog authors:
+Now that you've got a minimalistic blog with a back-end and front-end, you need to add in the concept of users and user authentication to your app. You've got to add the ability to let users log into your blog and create a post!
 
-```bash
-$ cat auth_handler.go
-```
+There are lots of different ways to do this yourself, but the reality of the situation is that there are a lot of risks that come with implementing user authentication yourself: standards change, it's easy to miss something important that can cause a security risk later, etc. It's a lot safer to just… Not roll your own authentication.
+
+That's why instead of rolling user authentication manually, I'll show you how to accomplish the same thing in a simpler, safer way using Okta's [free API service](https://developer.okta.com) for user management.
+
+To get started, create a new file named `auth_handler.go`. This file will hold your auth-related handler functions.
 
 ```go
 package main
 
 import (
 	"bytes"
+	"crypto/rand"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
@@ -512,6 +554,16 @@ type CustomData struct {
 	Author          map[string]string
 	IsAuthenticated bool
 	Email           string
+}
+
+func GenerateNonce() (string, error) {
+	nonceBytes := make([]byte, 32)
+	_, err := rand.Read(nonceBytes)
+	if err != nil {
+		return "", fmt.Errorf("could not generate nonce")
+	}
+
+	return base64.URLEncoding.EncodeToString(nonceBytes), nil
 }
 
 func AuthHandler(next http.HandlerFunc) http.HandlerFunc {
@@ -690,20 +742,52 @@ func verifyToken(t string) (*jwtverifier.Jwt, error) {
 }
 ```
 
-First you need to create Okta Developer Account [https://developer.okta.com/signup/](https://developer.okta.com/signup/) and verify you email.
-An Okta Application, configured for Web mode. This is done from the Okta Developer Console and you can find instructions [here](https://developer.okta.com/authentication-guide/implementing-authentication/auth-code#1-setting-up-your-application). When following the wizard, use the default properties. They are are designed to work with our sample applications.
 
-After successfully created account, you need to copy `.env.example` to `.env` and replace with your values:
+The file you just created now holds all of your authentication-related operations, including:
+
+- Login (via OpenID Connect),
+- Logout (via OpenID Connect),
+- Profile management (modifying your user profile), and
+- Helper functions to determine whether or not a user is authenticated or not
+
+The way all this user authentication works is via OpenID Connect's [Authorization Code flow](https://developer.okta.com/authentication-guide/implementing-authentication/auth-code). This flow allows a user to sign into a server-side web application in a secure and standardized way.
+
+If you'd like to see how these implementation details work, look through the code above and try to understand how the handlers are working. Reading code is one of the best ways to familiarize yourself with new concepts.
+
+Back to business though.
+
+Before you can run your new code and test everything out, you'll need to actually set up and configure Okta.
+
+To do this, you need to first go create a free [Okta Developer account](https://developer.okta.com/signup/).
+
+Once you've created your account and are in the Okta dashboard, copy down your **Org URL** value from the top-right hand side of your dashboard page. This will be needed in a moment.
+
+Then visit the **Applications** tab, and click the **Add Application** button. Select the **Web** icon and click **Next**. On the following page, you'll need to define your app-specific settings (these tell Okta what type of app you're building so it knows how to secure it properly).
+
+- **Name**: Set the name to whatever you like. I prefer to name my Okta applications the same name as my project.
+- **Base URIs**: Set this to `http://localhost:8081`
+- **Login redirect URIs**: Set this to `http://localhost:8081/authorization-code/callback`
+
+Next, click **Done** and your new application will be created. Copy down the **Client ID** and **Client Secret** values on this page. You'll need these in a moment.
+
+Now what you need to do is create a file named `.env` in your project directory. This file will hold all of your super-secret application values: like your Okta application's ID and secret, etc. Create this file and insert the following values into it.
 
 ```bash
-CLIENT_ID=
-CLIENT_SECRET=
-ISSUER=https://{yourOktaDomain}.com/oauth2/default
+export CLIENT_ID=<your client ID>
+export CLIENT_SECRET=<your client secet>
+export ISSUER=<your org URL>/oauth2/default
 ```
 
-Now we need to `login.html` template in `templates` folder:
+To "activate" these environment variables so your app can see them, run the command below:
 
-```go
+```bash
+source .env
+```
+
+
+Now, you need to create a `templates/login.html` file to hold the login page markup. Paste the following code inside this new file.
+
+```html
 {{ define "content" }}
 
 <div id="sign-in-widget"></div>
@@ -730,9 +814,11 @@ Now we need to `login.html` template in `templates` folder:
 {{ end }}
 ```
 
-## Routers
+## Create Your Go Router
 
-Usually `routers.go` or just `main.go` place where models, handlers and templates are all together in one synergy:
+So far you've built out the blog functionality in templates, handlers, and models. But you still need to plug it all together with a router. A router simply maps URL requests from a user to handler code.
+
+Open up `main.go` and insert the following code (replacing what was there before).
 
 ```go
 package main
@@ -763,14 +849,20 @@ func main() {
 }
 ```
 
-## Fin
+## Finalizing Your Go Application
 
-🎉 🎉 🎉 Congratulations! You build your first blog in go. 
+At this point, you've successfully built your first Go web application! Congratulations!
 
-## Do Even More with Go
+To test it out, run `go run *.go`, then visit `http://localhost:8081` in your browser. If you everything is working properly you should now be able to use your new blog!
 
-Check out more tutorials on Go:
+**NOTE**: `go run *.go` means to run all `*.go` files in current folder, we need this because we have one `main` package inside different go files.
 
-- TBD
+If you liked this small Go tutorial, you might want to check out some of our other articles below (or [follow us on Twitter](https://twitter.com/oktadev), [Facebook](https://www.facebook.com/oktadevelopers), and [YouTube](https://www.youtube.com/channel/UC5AMiWqFVFxF1q9Ya1FuZ_Q/featured)). We publish all sorts of technical tutorials and guides you may find interesting.
 
-If you have any questions, please don’t hesitate to leave a comment below, or ask us on our [Okta Developer Forums](https://devforum.okta.com/). Don't forget to follow us on Twitter [@OktaDev](https://twitter.com/oktadev), on [Facebook](https://www.facebook.com/oktadevelopers) and on [YouTube](https://www.youtube.com/channel/UC5AMiWqFVFxF1q9Ya1FuZ_Q/featured)!
+- [Build a Single-Page App with Go and Vue](https://developer.okta.com/blog/2018/10/23/build-a-single-page-app-with-go-and-vue)
+- [OpenID Connect - A Primer](https://developer.okta.com/blog/2017/07/25/oidc-primer-part-1)
+- [Learn JavaScript in 2019](https://developer.okta.com/blog/2018/12/19/learn-javascript-in-2019)
+- [Build and Test a React Native App with TypeScript and OAuth 2.0](https://developer.okta.com/blog/2018/11/29/build-test-react-native-typescript-oauth2)
+- [Build a Desktop App with Electron and Authentication](https://developer.okta.com/blog/2018/09/17/desktop-app-electron-authentication)
+
+If you have any questions, please don’t hesitate to leave a comment below, or ask us on our [Okta Developer Forums](https://devforum.okta.com/).
